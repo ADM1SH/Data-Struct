@@ -154,15 +154,17 @@ public:
     void loadData(){
         ifstream f("db_fleet.csv"); string line;
         while(getline(f, line)){
+            if(line.empty()) continue;
             stringstream ss(line); string i,m,y,h,ts,tr,r,s,rc;
             getline(ss,i,','); getline(ss,m,','); getline(ss,y,','); getline(ss,h,','); getline(ss,ts,','); getline(ss,tr,','); getline(ss,r,','); getline(ss,s,','); getline(ss,rc,',');
-            if(i!="") fleet.push_back(new Car(i,m,stoi(y),stoi(h),stoi(ts),tr,stod(r),stoi(s),stoi(rc)));
+            if(!i.empty()) fleet.push_back(new Car(i,m,stoi(y),stoi(h),stoi(ts),tr,stod(r),stoi(s),stoi(rc)));
         }
         ifstream fc("db_customers.csv");
         while(getline(fc, line)){
+            if(line.empty()) continue;
             stringstream ss(line); string n,p,ci,s,d;
             getline(ss,n,','); getline(ss,p,','); getline(ss,ci,','); getline(ss,s,','); getline(ss,d,',');
-            if(n!=""){Cust* nc=new Cust(n,p,ci,stod(s),d); nc->next=custHead; custHead=nc;}
+            if(!n.empty()){Cust* nc=new Cust(n,p,ci,stod(s),d); nc->next=custHead; custHead=nc;}
         }
     }
     void savePass(){ofstream f("admin_pass.txt"); f << adminPass; f.close();}
