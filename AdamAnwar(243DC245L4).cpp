@@ -14,7 +14,7 @@ using namespace std;
 // Structure to hold car information
 struct Car{
     string id, makeModel, trans, status;
-    int year, hp, ts, stock, maxStock; 
+    int year, hp, ts, stock, maxStock;
     double rate;
     // Constructor: status depends on initial stock
     Car(string i, string m, int y, int h, int t, string tr, double r, int s){
@@ -55,8 +55,8 @@ public:
     // Dequeue: Car is cleaned and stock is restored
     Car* dequeue(){
         if(isEmpty()){return NULL;}
-        Car* c = queue[front]; front = (front + 1) % 10; size--; 
-        if(c->stock < c->maxStock) c->stock++; 
+        Car* c = queue[front]; front = (front + 1) % 10; size--;
+        if(c->stock < c->maxStock) c->stock++;
         c->status = (c->stock > 0) ? "Available" : "No Stock"; return c;
     }
     void display(){
@@ -190,27 +190,35 @@ void clearInput(){cin.clear(); cin.ignore(1000, '\n');}
 int main(){
     HashTable ht; Showroom sr(&ht); ServiceQueue sq; HistoryStack rs, ss;
     Cust* custHead = NULL; string pass = "paddock77";
-    
+
     // Default Enthusiast Fleet with Rarity levels
     sr.add(new Car("MB01", "Mercedes C218 CLS63", 2014, 577, 300, "Auto", 800, 2));
     sr.add(new Car("MB02", "Mercedes W204 C63 Black Series", 2012, 510, 300, "Auto", 1200, 1));
     sr.add(new Car("MB03", "Mercedes C197 SLS AMG Black Series", 2014, 622, 315, "Auto", 2500, 1));
     sr.add(new Car("MB04", "Mercedes R230 SL65 Black Series", 2009, 661, 320, "Auto", 3000, 1));
     sr.add(new Car("MB05", "Mercedes W222 S65 AMG", 2018, 621, 300, "Auto", 1500, 2));
+
     sr.add(new Car("BM01", "BMW F90 M5 CS", 2022, 627, 305, "Auto", 1800, 2));
     sr.add(new Car("BM02", "BMW G20 M3 CS", 2023, 543, 302, "Auto", 1400, 2));
     sr.add(new Car("BM03", "BMW F87 M2 CS", 2020, 444, 280, "Auto", 900, 2));
+
     sr.add(new Car("FE01", "Ferrari F12 Berlinetta", 2015, 730, 340, "Auto", 2200, 1));
     sr.add(new Car("FE02", "Ferrari 812 Competizione", 2022, 819, 340, "Auto", 4500, 1));
     sr.add(new Car("FE03", "Ferrari 360 Challenge Stradale", 2004, 420, 300, "F1", 1600, 1));
+
     sr.add(new Car("RN01", "Renault Clio V6 Phase 2", 2005, 252, 245, "Man", 600, 1));
     sr.add(new Car("AL01", "Alpine A110s", 2023, 288, 260, "Auto", 550, 2));
+
     sr.add(new Car("MM01", "Mercedes-Maybach 62S Coupe", 2011, 604, 250, "Auto", 5000, 1));
+
     sr.add(new Car("PO01", "Porsche 911 (991.2) Turbo S", 2018, 580, 330, "Auto", 1700, 2));
+
     sr.add(new Car("TY01", "Toyota GR Yaris MT", 2025, 280, 230, "Man", 350, 5));
     sr.add(new Car("TY02", "Toyota GR Corolla MT", 2025, 300, 230, "Man", 380, 5));
+
     sr.add(new Car("AM01", "Aston Martin Vanquish Zagato", 2017, 580, 301, "Auto", 2800, 1));
     sr.add(new Car("AM02", "Aston Martin V12 Vanquish", 2015, 568, 323, "Auto", 1300, 2));
+
     sr.add(new Car("PR01", "Proton Satria Neo R3 Lotus", 2013, 145, 205, "Man", 150, 5));
 
     int c, age, days; string id, key, pInput;
@@ -259,7 +267,7 @@ int main(){
                 }
             } else cout << RED << "Access Denied!" << RST << endl;
         }
-        cout << "\n(Enter to continue...)"; cin.ignore(); cin.get();
+        cout << "\n(Enter to continue...)\n"; cin.ignore(); cin.get();
     }
     return 0;
 }
