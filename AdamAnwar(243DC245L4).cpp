@@ -243,11 +243,11 @@ int main(){
 
     int c, age, days; string id, key, pInput;
     while(true){
-        system("clear"); // UI Logic: Clears terminal for a modern app experience
         header();
         cout << "1. Showroom\n2. Search Car\n3. Sort Catalog\n4. Rent a Car\n5. Return Car\n6. Wash Bay\n7. History Logs\n8. Admin Mode\n0. Exit\nChoice: "; 
         if(!(cin >> c)){cout << RED << "Menu Input Error!" << RST << endl; clearInput(); continue;}
         if(c == 0) break;
+        system("clear");
         if(c == 1){
             sr.display(); char book; cout << "\nBook a car now? (y/n): "; cin >> book;
             if(book == 'y' || book == 'Y'){
