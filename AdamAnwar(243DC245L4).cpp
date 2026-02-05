@@ -1,10 +1,7 @@
 #include <iostream>
-#include <string>
 #include <iomanip>
-
 using namespace std;
 
-// Colors
 #define RED "\033[31m"
 #define GRN "\033[32m"
 #define YEL "\033[33m"
@@ -28,7 +25,6 @@ struct Node{
     Node(Car* c){data = c; next = NULL;}
 };
 
-// Queue - Service Bay (Array Implementation)
 class ServiceQueue{
     Car* queue[10]; int front, rear, size;
 public:
@@ -56,7 +52,6 @@ struct LogNode{
     LogNode(string s){log = s; next = NULL;}
 };
 
-// Stack - Rental/Search History (Linked Implementation)
 class HistoryStack{
     LogNode* top;
 public:
@@ -69,7 +64,6 @@ public:
     }
 };
 
-// Hash Table - Fast ID Lookup
 class HashTable{
     Node* table[50];
 public:
@@ -178,20 +172,28 @@ int main(){
     sr.add(new Car("MB03", "Mercedes C197 SLS AMG Black Series", 2014, 622, 315, "Auto", 2500));
     sr.add(new Car("MB04", "Mercedes R230 SL65 Black Series", 2009, 661, 320, "Auto", 3000));
     sr.add(new Car("MB05", "Mercedes W222 S65 AMG", 2018, 621, 300, "Auto", 1500));
+
     sr.add(new Car("BM01", "BMW F90 M5 CS", 2022, 627, 305, "Auto", 1800));
     sr.add(new Car("BM02", "BMW G20 M3 CS", 2023, 543, 302, "Auto", 1400));
     sr.add(new Car("BM03", "BMW F87 M2 CS", 2020, 444, 280, "Auto", 900));
+
     sr.add(new Car("FE01", "Ferrari F12 Berlinetta", 2015, 730, 340, "Auto", 2200));
     sr.add(new Car("FE02", "Ferrari 812 Competizione", 2022, 819, 340, "Auto", 4500));
     sr.add(new Car("FE03", "Ferrari 360 Challenge Stradale", 2004, 420, 300, "F1", 1600));
+
     sr.add(new Car("RN01", "Renault Clio V6 Phase 2", 2005, 252, 245, "Man", 600));
     sr.add(new Car("AL01", "Alpine A110s", 2023, 288, 260, "Auto", 550));
+
     sr.add(new Car("MM01", "Mercedes-Maybach 62S Coupe", 2011, 604, 250, "Auto", 5000));
+
     sr.add(new Car("PO01", "Porsche 911 (991.2) Turbo S", 2018, 580, 330, "Auto", 1700));
+
     sr.add(new Car("TY01", "Toyota GR Yaris MT", 2025, 280, 230, "Man", 350));
     sr.add(new Car("TY02", "Toyota GR Corolla MT", 2025, 300, 230, "Man", 380));
+
     sr.add(new Car("AM01", "Aston Martin Vanquish Zagato", 2017, 580, 301, "Auto", 2800));
     sr.add(new Car("AM02", "Aston Martin V12 Vanquish", 2015, 568, 323, "Auto", 1300));
+
     sr.add(new Car("PR01", "Proton Satria Neo R3 Lotus", 2013, 145, 205, "Man", 150));
 
     int c, age, days; string id, key;
