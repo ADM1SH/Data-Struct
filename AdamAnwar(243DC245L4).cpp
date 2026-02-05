@@ -9,23 +9,21 @@ using namespace std;
 #define CYN "\033[36m"
 #define RST "\033[0m"
 
-// Helper to manually print spaces for table alignment (Replacing setw)
+// Algorithm: Lowercase helper for search
+string toLower(string s){
+    for(int i = 0; i < s.length(); i++) if(s[i] >= 'A' && s[i] <= 'Z') s[i] += 32;
+    return s;
+}
+
+// Helper to manually print spaces for table alignment (No iomanip)
 void printSpace(int width, string s){
     int len = s.length();
-    if(len >= width) cout << " ";
-    else for(int i = 0; i < width - len; i++) cout << " ";
+    for(int i = 0; i < (width - len); i++) cout << " ";
 }
 
 void printSpaceInt(int width, int n){
     string s = to_string(n);
-    int len = s.length();
-    if(len >= width) cout << " ";
-    else for(int i = 0; i < width - len; i++) cout << " ";
-}
-
-string toLower(string s){
-    for(int i = 0; i < s.length(); i++) if(s[i] >= 'A' && s[i] <= 'Z') s[i] += 32;
-    return s;
+    for(int i = 0; i < (width - s.length()); i++) cout << " ";
 }
 
 // Data Structure: Car Struct
@@ -38,7 +36,6 @@ struct Car{
     }
     void displayRow() const {
         string s_txt = (stock > 0) ? to_string(stock) : "OUT";
-        // Manual formatting
         cout << "| " << id; printSpace(8, id);
         cout << "| " << makeModel; printSpace(35, makeModel);
         cout << "| " << hp << "hp "; printSpaceInt(5, hp);
@@ -50,18 +47,14 @@ struct Car{
     }
 };
 
+// Data Structure: Linked List for Customers
 struct Cust{
     string name, phone, carID;
     Cust* next;
     Cust(string n, string p, string c){name = n; phone = p; carID = c; next = NULL;}
 };
 
-struct Node{
-    Car* data; Node* next;
-    Node(Car* c){data = c; next = NULL;}
-};
-
-// Data Structure: Queue (Circular Array)
+// Queue Data Structure: Circular Array Implementation (Wash Bay)
 class ServiceQueue{
     Car* queue[10]; int front, rear, size;
 public:
@@ -84,19 +77,14 @@ public:
         for(int i = 0, j = front; i < size; i++, j = (j + 1) % 10)
             cout << i + 1 << ". " << queue[j]->makeModel << " [" << queue[j]->id << "]" << endl;
     }
-    bool isInService(string id){
-        for(int i = 0, j = front; i < size; i++, j = (j + 1) % 10)
-            if(queue[j]->id == id) return true;
-        return false;
-    }
 };
 
+// Stack Data Structure: Linked List Implementation (Logs)
 struct LogNode{
     string log; LogNode* next;
     LogNode(string s){log = s; next = NULL;}
 };
 
-// Data Structure: Stack (Linked List)
 class HistoryStack{
     LogNode* top;
 public:
@@ -109,76 +97,57 @@ public:
     }
 };
 
-// Data Structure: Hash Table
+// Hash Table Data Structure: Quick Search O(1)
 class HashTable{
-    Node* table[50];
+    Car* table[50];
 public:
     HashTable(){for(int i = 0; i < 50; i++) table[i] = NULL;}
     int hashFn(string id){
-        int s = 0; for(unsigned i = 0; i < id.length(); i++) s += id[i];
+        int s = 0; for(int i = 0; i < id.length(); i++) s += id[i];
         return s % 50;
     }
-    void insert(Car* c){
-        int idx = hashFn(c->id); Node* n = new Node(c); n->next = table[idx]; table[idx] = n;
-    }
-    Car* search(string id){
-        Node* t = table[hashFn(id)];
-        while(t){if(t->data->id == id) return t->data; t = t->next;}
-        return NULL;
-    }
-    void remove(string id){
-        int idx = hashFn(id); Node *t = table[idx], *p = NULL;
-        while(t && t->data->id != id){p = t; t = t->next;}
-        if(!t) return;
-        if(!p) table[idx] = t->next; else p->next = t->next;
-        delete t;
-    }
+    void insert(Car* c){table[hashFn(c->id)] = c;} // Simplified for lab style
+    Car* search(string id){return table[hashFn(id)];}
 };
 
-// Main Inventory Linked List
+// Showroom Implementation: Array of Pointers
 class Showroom{
-    Node* head; HashTable* ht;
+    Car* fleet[100]; // Max 100 cars
+    int count;
+    HashTable* ht;
 public:
-    Showroom(HashTable* h){head = NULL; ht = h;}
+    Showroom(HashTable* h){count = 0; ht = h;}
     void add(Car* c){
-        Node* n = new Node(c);
-        if(!head){head = n;} else{Node* t = head; while(t->next) t = t->next; t->next = n;}
-        ht->insert(c);
+        if(count < 100){fleet[count++] = c; ht->insert(c);}
     }
     void display(){
         cout << CYN << "--------------------------------------------------------------------------------------------------------" << endl;
         cout << "| ID      | Make & Model                       | Power  | TR   | Rate     | Stock| Status       |" << endl;
         cout << "--------------------------------------------------------------------------------------------------------" << RST << endl;
-        Node* t = head; while(t){t->data->displayRow(); t = t->next;}
+        for(int i = 0; i < count; i++) fleet[i]->displayRow();
     }
+    // Search Algorithm: Linear Search
     void searchBrand(string k){
-        Node* t = head; bool f = false; string lowerK = toLower(k);
-        while(t){
-            if(toLower(t->data->makeModel).find(lowerK) != string::npos){t->data->displayRow(); f = true;} 
-            t = t->next;
+        bool f = false; string lowK = toLower(k);
+        for(int i = 0; i < count; i++){
+            if(toLower(fleet[i]->makeModel).find(lowK) != string::npos){fleet[i]->displayRow(); f = true;}
         }
-        if(!f) cout << RED << "No matches found." << RST << endl;
+        if(!f) cout << RED << "Not found." << RST << endl;
     }
+    // Sorting Algorithm: Selection Sort
     void sortByPrice(){
-        for(Node* i = head; i; i = i->next)
-            for(Node* j = i->next; j; j = j->next)
-                if(i->data->rate < j->data->rate){Car* t = i->data; i->data = j->data; j->data = t;}
+        for(int i = 0; i < count-1; i++){
+            for(int j = i+1; j < count; j++){
+                if(fleet[i]->rate < fleet[j]->rate){Car* t = fleet[i]; fleet[i] = fleet[j]; fleet[j] = t;}
+            }
+        }
     }
     void sortByHP(){
-        for(Node* i = head; i; i = i->next)
-            for(Node* j = i->next; j; j = j->next)
-                if(i->data->hp < j->data->hp){Car* t = i->data; i->data = j->data; j->data = t;}
-    }
-    void del(string id, ServiceQueue& sq){
-        Car* c = ht->search(id);
-        if(!c){cout << RED << "ID not found." << RST << endl; return;}
-        if(c->status == "In-Service" || sq.isInService(id) || c->stock < c->maxStock){
-            cout << RED << "Cannot remove: Car is currently Rented or In-Service." << RST << endl; return;
+        for(int i = 0; i < count-1; i++){
+            for(int j = i+1; j < count; j++){
+                if(fleet[i]->hp < fleet[j]->hp){Car* t = fleet[i]; fleet[i] = fleet[j]; fleet[j] = t;}
+            }
         }
-        Node *t = head, *p = NULL;
-        while(t && t->data->id != id){p = t; t = t->next;}
-        if(!p) head = t->next; else p->next = t->next;
-        ht->remove(id); delete t->data; delete t; cout << YEL << "Decommissioned." << RST << endl;
     }
     Car* get(string id){return ht->search(id);}
 };
@@ -205,102 +174,80 @@ void clearInput(){cin.clear(); cin.ignore(1000, '\n');}
 int main(){
     HashTable ht; Showroom sr(&ht); ServiceQueue sq; HistoryStack rs, ss;
     Cust* custHead = NULL; string pass = "paddock77";
-    
-    // Manual Fleet Population (Since File IO is disabled)
+
+    // Initial Population
     sr.add(new Car("MB01", "Mercedes C218 CLS63", 2014, 577, 300, "Auto", 800, 2));
     sr.add(new Car("MB02", "Mercedes W204 C63 Black Series", 2012, 510, 300, "Auto", 1200, 1));
     sr.add(new Car("MB03", "Mercedes C197 SLS AMG Black Series", 2014, 622, 315, "Auto", 2500, 1));
-    sr.add(new Car("MB04", "Mercedes R230 SL65 Black Series", 2009, 661, 320, "Auto", 3000, 1));
-    sr.add(new Car("MB05", "Mercedes W222 S65 AMG", 2018, 621, 300, "Auto", 1500, 2));
-    sr.add(new Car("BM01", "BMW F90 M5 CS", 2022, 627, 305, "Auto", 1800, 2));
-    sr.add(new Car("BM02", "BMW G20 M3 CS", 2023, 543, 302, "Auto", 1400, 2));
-    sr.add(new Car("BM03", "BMW F87 M2 CS", 2020, 444, 280, "Auto", 900, 2));
-    sr.add(new Car("FE01", "Ferrari F12 Berlinetta", 2015, 730, 340, "Auto", 2200, 1));
-    sr.add(new Car("FE02", "Ferrari 812 Competizione", 2022, 819, 340, "Auto", 4500, 1));
-    sr.add(new Car("FE03", "Ferrari 360 Challenge Stradale", 2004, 420, 300, "F1", 1600, 1));
-    sr.add(new Car("RN01", "Renault Clio V6 Phase 2", 2005, 252, 245, "Man", 600, 1));
-    sr.add(new Car("AL01", "Alpine A110s", 2023, 288, 260, "Auto", 550, 2));
-    sr.add(new Car("MM01", "Mercedes-Maybach 62S Coupe", 2011, 604, 250, "Auto", 5000, 1));
-    sr.add(new Car("PO01", "Porsche 911 (991.2) Turbo S", 2018, 580, 330, "Auto", 1700, 2));
-    sr.add(new Car("TY01", "Toyota GR Yaris MT", 2025, 280, 230, "Man", 350, 5));
-    sr.add(new Car("TY02", "Toyota GR Corolla MT", 2025, 300, 230, "Man", 380, 5));
-    sr.add(new Car("AM01", "Aston Martin Vanquish Zagato", 2017, 580, 301, "Auto", 2800, 1));
-    sr.add(new Car("AM02", "Aston Martin V12 Vanquish", 2015, 568, 323, "Auto", 1300, 2));
-    sr.add(new Car("PR01", "Proton Satria Neo R3 Lotus", 2013, 145, 205, "Man", 150, 5));
     sr.add(new Car("FE40", "Ferrari F40 (Icon)", 1987, 471, 324, "Man", 8000, 1));
+    sr.add(new Car("TY01", "Toyota GR Yaris MT", 2025, 280, 230, "Man", 350, 5));
+    sr.add(new Car("PR01", "Proton Satria Neo R3 Lotus", 2013, 145, 205, "Man", 150, 5));
 
     int c, age, days; string id, key, pInput;
     while(true){
-        system("clear");
         header();
         cout << "1. Showroom\n2. Search Car\n3. Sort Catalog\n4. Rent a Car\n5. Return Car\n6. Wash Bay\n7. History Logs\n8. Admin Mode\n0. Exit\nChoice: "; 
         if(!(cin >> c)){cout << RED << "Error!" << RST << endl; clearInput(); continue;}
         if(c == 0) break;
+        system("clear");
         if(c == 1){
             sr.display(); char book; cout << "\nBook a car now? (y/n): "; cin >> book;
             if(book == 'y' || book == 'Y'){
-                cout << "Enter Car ID: "; cin >> id; Car* car = sr.get(id);
+                cout << "ID: "; cin >> id; Car* car = sr.get(id);
                 if(car && car->stock > 0){
-                    cout << "Age: "; if(!(cin >> age) || age < 18){cout << RED << "Invalid Age!" << RST << endl; clearInput(); goto wait;}
-                    if(car->hp > 500 && age < 25){cout << RED << "Denied: Power level restricted." << RST << endl;}
-                    else{
+                    cout << "Age: "; cin >> age;
+                    if(car->hp > 500 && age < 25){cout << RED << "Denied!" << RST << endl;}
+                    else {
                         string name, phone; cout << "Name: "; cin.ignore(); getline(cin, name);
-                        cout << "Phone: "; cin >> phone; cout << "Days: "; if(!(cin >> days) || days <= 0){cout << RED << "Invalid!" << RST << endl; clearInput(); goto wait;}
-                        car->stock--; if(car->stock == 0) car->status = "Rented (Out)";
+                        cout << "Phone: "; cin >> phone; cout << "Days: "; cin >> days;
+                        car->stock--; rs.push("Rented " + car->makeModel);
                         Cust* nC = new Cust(name, phone, id); nC->next = custHead; custHead = nC;
-                        rs.push("Rented " + car->makeModel + " to " + name);
-                        cout << GRN << "\n--- RECEIPT ---\nTotal: $" << car->rate*days << "\nApproved!" << RST << endl;
+                        cout << GRN << "Approved!" << RST << endl;
                     }
                 } else cout << RED << "Unavailable!" << RST << endl;
             }
         }
         if(c == 2){cout << "Keyword: "; cin >> key; ss.push("Searched: " + key); sr.searchBrand(key);}
-        if(c == 3){int s; cout << "Sort: [1.Price 2.HP]: "; cin >> s; if(s == 1) sr.sortByPrice(); else sr.sortByHP(); sr.display();}
+        if(c == 3){int s; cout << "1.Price 2.HP: "; cin >> s; if(s == 1) sr.sortByPrice(); else sr.sortByHP(); sr.display();}
         if(c == 4){
             cout << "Car ID: "; cin >> id; Car* car = sr.get(id);
             if(car && car->stock > 0){
-                cout << "Age: "; if(!(cin >> age) || age < 18){cout << RED << "Invalid!" << RST << endl; clearInput(); continue;}
-                if(car->hp > 500 && age < 25){cout << RED << "Insurance Denied!" << RST << endl;}
-                else{
+                cout << "Age: "; cin >> age;
+                if(car->hp > 500 && age < 25){cout << RED << "Denied!" << RST << endl;}
+                else {
                     string name, phone; cout << "Name: "; cin.ignore(); getline(cin, name);
-                    cout << "Phone: "; cin >> phone; cout << "Days: "; if(!(cin >> days) || days <= 0){cout << RED << "Error!" << RST << endl; clearInput(); continue;}
-                    car->stock--; if(car->stock == 0) car->status = "Rented (Out)";
+                    cout << "Phone: "; cin >> phone; cout << "Days: "; cin >> days;
+                    car->stock--; rs.push("Rented " + car->makeModel);
                     Cust* nC = new Cust(name, phone, id); nC->next = custHead; custHead = nC;
-                    rs.push("Rented " + car->makeModel); cout << GRN << "Approved!" << RST << endl;
+                    cout << GRN << "Approved!" << RST << endl;
                 }
             } else cout << RED << "Unavailable!" << RST << endl;
         }
         if(c == 5){
             cout << "Car ID: "; cin >> id; Car* car = sr.get(id);
-            if(car && car->stock < car->maxStock && car->status != "In-Service"){
-                sq.enqueue(car); rs.push("Returned " + car->makeModel); cout << GRN << "Sent to Wash Bay" << RST << endl;
-            } else cout << RED << "Error!" << RST << endl;
+            if(car && car->stock < car->maxStock){sq.enqueue(car); rs.push("Returned " + car->makeModel);}
+            else cout << RED << "Error!" << RST << endl;
         }
         if(c == 6){sq.display(); if(!sq.isEmpty()){char y; cout << "Finish? (y/n): "; cin >> y; if(y == 'y') sq.dequeue();}}
         if(c == 7){rs.display("RENTAL LOGS"); ss.display("SEARCH HISTORY");}
         if(c == 8){
             cout << "Password: "; cin >> pInput;
             if(pInput == pass){
-                int a; cout << "1.Add 2.Delete 3.Cust Database: "; cin >> a;
+                int a; cout << "1.Add 2.Customer List: "; cin >> a;
                 if(a == 1){
                     string i, m, t; int y, h, ts, s; double r; 
                     cout << "ID: "; cin >> i; cout << "Model: "; cin.ignore(); getline(cin, m);
-                    cout << "Year: "; cin >> y; cout << "HP: "; cin >> h;
-                    cout << "TS: "; cin >> ts; cout << "Trans: "; cin >> t;
-                    cout << "Rate: "; cin >> r; cout << "Stock: "; cin >> s;
+                    cout << "Year: "; cin >> y; cout << "HP: "; cin >> h; cout << "TS: "; cin >> ts;
+                    cout << "Trans: "; cin >> t; cout << "Rate: "; cin >> r; cout << "Stock: "; cin >> s;
                     sr.add(new Car(i, m, y, h, ts, t, r, s));
                 }
-                if(a == 2){cout << "ID: "; cin >> id; sr.del(id, sq);}
-                if(a == 3){
+                if(a == 3 || a == 2){
                     Cust* tC = custHead; if(!tC) cout << "No records" << endl;
-                    while(tC){
-                        cout << "Name: " << tC->name; printSpace(15, tC->name);
-                        cout << " | Phone: " << tC->phone << endl; tC = tC->next;
-                    }
+                    while(tC){cout << "Name: " << tC->name << " | Car: " << tC->carID << endl; tC = tC->next;}
                 }
             } else cout << RED << "Denied!" << RST << endl;
         }
-        wait: cout << "\n(Enter to continue...)"; cin.ignore(); cin.get();
+        cout << "\n(Enter to continue...)"; cin.ignore(); cin.get();
     }
     return 0;
 }
