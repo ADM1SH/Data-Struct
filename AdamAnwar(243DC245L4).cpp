@@ -31,7 +31,7 @@ struct Car{
     Car(string i, string m, int y, int h, int s, string t, double r, int rc=0){
         id=i; make=m; year=y; hp=h; stock=s; maxStock=s; trans=t; baseRate=r; rents=rc; status=(s>0)?"Available":"Out of Stock";
     }
-    double getPrice(){return (stock == 1 && maxStock > 1) ? baseRate * 1.2 : baseRate;} // Surge Pricing Algorithm
+    double getPrice(){return (stock == 1 && maxStock > 1) ? baseRate * 1.2 : baseRate;} 
     void display() const {
         double currRate = (stock == 1 && maxStock > 1) ? baseRate * 1.2 : baseRate;
         string rateStr = "$" + to_string((int)currRate) + ((currRate > baseRate) ? " (SURGE)" : "");
@@ -64,14 +64,18 @@ public:
     void show(){if(sz==0)cout<<YEL<<"[Empty]"<<RST<<endl; else for(int i=0,j=f; i<sz; i++,j=(j+1)%10) cout<<i+1<<". "<<q[j]->make<<endl;}
 };
 
-// Data Structure: Stack (Linked List) for Audit Logs
+// Data Structure: Stack (Linked List) for Audit Logs (NOW PERSISTENT)
 struct Log{string msg, time; Log* next; Log(string m){msg=m; time=getTimestamp(); next=NULL;}};
 class AuditLog{
     Log* top;
 public:
     AuditLog(){top=NULL;}
-    void push(string m){Log* n=new Log(m); n->next=top; top=n;}
-    void show(){Log* t=top; while(t){cout<<"["<<t->time<<"] "<<t->msg<<endl; t=t->next;}}
+    void push(string m){
+        Log* n=new Log(m); n->next=top; top=n;
+        ofstream f("audit_log.txt", ios::app); // Appends every action to a text file
+        f << "[" << n->time << "] " << m << endl; f.close();
+    }
+    void show(){Log* t=top; if(!t) cout<<YEL<<"No logs in session."<<RST<<endl; while(t){cout<<"["<<t->time<<"] "<<t->msg<<endl; t=t->next;}}
 };
 
 // Core System Class
@@ -80,8 +84,9 @@ class System{
     Cust* custHead;
     ServiceQueue sq;
     AuditLog log;
+    string adminPass;
 public:
-    System(){custHead=NULL; loadData();} 
+    System(){custHead=NULL; loadData(); loadPass();} 
 
     // CRUD: Create
     void addCar(string i, string m, int y, int h, int s, string t, double r, int rc=0){
@@ -98,13 +103,12 @@ public:
         for(int i=0; i<fleet.size(); i++) fleet[i]->display();
     }
 
-    // CRUD: Search (Linear)
+    // CRUD: Search
     Car* findCar(string id){
         for(int i=0; i<fleet.size(); i++) if(toLower(fleet[i]->id) == toLower(id)) return fleet[i];
         return NULL;
     }
     
-    // Feature: Search Brand
     void search(string key){
         cout << MAG << "\nSearch Results for '" << key << "':" << RST << endl;
         bool f=0; string lk=toLower(key);
@@ -113,7 +117,7 @@ public:
         log.push("Searched: " + key);
     }
 
-    // Feature: Rent Logic with Surge Pricing & Membership
+    // Feature: Rent Logic
     void rentCar(){
         string id; cout << "Car ID: "; cin >> id; Car* c = findCar(id);
         if(c && c->stock > 0){
@@ -121,27 +125,15 @@ public:
             if(c->hp > 500 && age < 25){cout << RED << "Insurance Denied (High HP)." << RST << endl; return;}
             int days; cout << "Days: "; cin >> days;
             double price = c->getPrice() * days;
-            
             string n, p; cout << "Name: "; cin.ignore(); getline(cin, n); cout << "Phone: "; cin >> p;
             loading("Processing Payment");
-            
             c->stock--; c->rents++; if(c->stock==0) c->status="Rented (Out)";
             Cust* nc = new Cust(n, p, c->make, price, getTimestamp()); nc->next = custHead; custHead = nc;
-            
-            cout << GRN << "\n=================================" << endl;
-            cout << "       OFFICIAL RECEIPT" << endl;
-            cout << "=================================" << endl;
-            cout << "Client:  " << n << " (" << nc->tier << ")" << endl;
-            cout << "Vehicle: " << c->make << endl;
-            cout << "Rate:    $" << fixed << setprecision(2) << c->getPrice() << "/day" << endl;
-            cout << "Total:   $" << price << endl;
-            cout << "Date:    " << nc->date << endl;
-            cout << "=================================" << RST << endl;
+            cout << GRN << "\n--- RECEIPT ---\nClient:  " << n << " (" << nc->tier << ")\nVehicle: " << c->make << "\nTotal:   $" << price << "\n===============" << RST << endl;
             log.push("Rented " + c->id + " to " + n); saveData();
         } else cout << RED << "Unavailable." << RST << endl;
     }
 
-    // Feature: Return to Queue
     void returnCar(){
         string id; cout << "Car ID: "; cin >> id; Car* c = findCar(id);
         if(c && c->stock < c->maxStock){sq.add(c); log.push("Returned " + id); cout << GRN << "Vehicle sent to Service Bay." << RST << endl;}
@@ -150,43 +142,42 @@ public:
 
     // Admin Tools
     void adminPanel(){
-        string p; cout << "Password: "; cin >> p;
-        if(p != "paddock77"){cout << RED << "Access Denied." << RST << endl; return;}
+        string p; cout << "Admin Password: "; cin >> p;
+        if(p != adminPass){cout << RED << "Access Denied." << RST << endl; return;}
         while(true){
-            cout << "\n" << MAG << "[ADMIN DASHBOARD]" << RST << "\n1. Add Car\n2. Delete Car\n3. Financial Report\n4. Service Bay\n0. Back\nOp: ";
+            cout << "\n" << MAG << "[ADMIN DASHBOARD]" << RST << "\n1. Add Car\n2. Delete Car\n3. Financial Report\n4. Service Bay\n5. Change Password\n0. Back\nOp: ";
             int op; cin >> op;
             if(op==0) break;
             if(op==1){
                 string i,m,t; int y,h,s; double r;
                 cout << "ID Model Year HP Stock Trans Rate: "; cin >> i >> m >> y >> h >> s >> t >> r;
-                addCar(i,m,y,h,s,t,r); cout << GRN << "Added." << RST << endl;
+                addCar(i,m,y,h,s,t,r); log.push("Admin Added: " + m); cout << GRN << "Added." << RST << endl;
             }
             if(op==2){
-                string i; cout << "ID: "; cin >> i;
+                string i; cout << "ID to delete: "; cin >> i;
                 for(int k=0; k<fleet.size(); k++){
-                    if(fleet[k]->id == i){fleet.erase(fleet.begin() + k); cout << YEL << "Deleted." << RST << endl; saveData(); break;}
+                    if(fleet[k]->id == i){log.push("Admin Deleted: " + fleet[k]->make); fleet.erase(fleet.begin() + k); cout << YEL << "Deleted." << RST << endl; saveData(); break;}
                 }
             }
             if(op==3){
-                double total=0; int tx=0;
-                Cust* t=custHead; cout << "\n--- REVENUE STREAM ---" << endl;
+                double total=0; int tx=0; Cust* t=custHead; cout << "\n--- REVENUE STREAM ---" << endl;
                 while(t){cout << t->date << " | " << setw(10) << t->name << " | $" << t->spent << " (" << t->tier << ")" << endl; total+=t->spent; tx++; t=t->next;}
-                cout << "----------------------" << endl;
-                cout << "TOTAL REVENUE: $" << total << " (" << tx << " txns)" << endl;
-                
-                ofstream rep("Revenue_Report.txt");
-                rep << "PADDOCK CLUB FINANCIAL REPORT\nGenerated: " << getTimestamp() << "\nTotal Revenue: $" << total << endl;
-                rep.close(); cout << GRN << "Report exported to file." << RST << endl;
+                cout << "TOTAL REVENUE: $" << total << " (" << tx << " txns)\nReport exported to Revenue_Report.txt" << endl;
+                ofstream rep("Revenue_Report.txt"); rep << "PADDOCK CLUB FINANCIAL REPORT\nGenerated: " << getTimestamp() << "\nTotal Revenue: $" << total << endl; rep.close();
             }
             if(op==4){sq.show(); char c; cout << "Process Next? (y/n): "; cin >> c; if(c=='y') sq.process();}
+            if(op==5){cout << "New Password: "; cin >> adminPass; savePass(); cout << GRN << "Password Updated." << RST << endl;}
         }
     }
 
-    // File Persistence
+    // Persistence Logic
     void saveData(){
         ofstream f("db_fleet.csv");
         for(int i=0; i<fleet.size(); i++) f << fleet[i]->id << "," << fleet[i]->make << "," << fleet[i]->year << "," << fleet[i]->hp << "," << fleet[i]->stock << "," << fleet[i]->trans << "," << fleet[i]->baseRate << "," << fleet[i]->rents << endl;
         f.close();
+        ofstream fc("db_customers.csv"); Cust* t=custHead;
+        while(t){fc << t->name << "," << t->phone << "," << t->carID << "," << t->spent << "," << t->date << endl; t=t->next;}
+        fc.close();
     }
     void loadData(){
         ifstream f("db_fleet.csv"); string line;
@@ -195,7 +186,15 @@ public:
             getline(ss,i,','); getline(ss,m,','); getline(ss,y,','); getline(ss,h,','); getline(ss,s,','); getline(ss,t,','); getline(ss,r,','); getline(ss,rc,',');
             if(i!="") fleet.push_back(new Car(i,m,stoi(y),stoi(h),stoi(s),t,stod(r),stoi(rc)));
         }
+        ifstream fc("db_customers.csv");
+        while(getline(fc, line)){
+            stringstream ss(line); string n,p,ci,s,d;
+            getline(ss,n,','); getline(ss,p,','); getline(ss,ci,','); getline(ss,s,','); getline(ss,d,',');
+            if(n!=""){Cust* nc=new Cust(n,p,ci,stod(s),d); nc->next=custHead; custHead=nc;}
+        }
     }
+    void savePass(){ofstream f("admin_pass.txt"); f << adminPass; f.close();}
+    void loadPass(){ifstream f("admin_pass.txt"); if(f >> adminPass) f.close(); else adminPass="paddock77";}
     void showLogs(){log.show();}
 };
 
@@ -212,23 +211,20 @@ void header(){
     cout << "                     | |     | |     | |  | ||  _ < " << endl;
     cout << "                     | |____ | |____ | |__| || |_) |" << endl;
     cout << "                      \\_____||______| \\____/ |____/ " << RST << endl;
-    cout << "\n                      EXOTIC & PERFORMANCE CAR RENTALS" << endl;
-    cout << "==================================================================================\n" << endl;
 }
 
 int main(){
     System sys;
-    if(sys.findCar("MB01") == NULL){ // Pre-seed if file empty
+    if(sys.findCar("MB01") == NULL){ // Pre-seed if database is new
         sys.addCar("MB01","Mercedes C63 Black",2012,510,1,"Auto",1200);
         sys.addCar("FE40","Ferrari F40 Icon",1987,471,1,"Man",8000);
         sys.addCar("TY01","Toyota GR Yaris",2025,280,5,"Man",350);
         sys.addCar("BM01","BMW M5 CS",2022,627,2,"Auto",1800);
     }
-
     int c;
     while(true){
         system("clear"); header();
-        cout << "1. Showroom\n2. Search\n3. Sort (Price/HP)\n4. Rent Vehicle\n5. Return Vehicle\n6. Activity Logs\n7. Admin Panel\n0. Exit\nChoice: "; cin >> c;
+        cout << "1. Showroom\n2. Search\n3. Sort (Price/HP)\n4. Rent Vehicle\n5. Return Vehicle\n6. Audit Logs\n7. Admin Panel\n0. Exit\nChoice: "; cin >> c;
         if(c==0) break;
         if(c==1){sys.viewShowroom(0); char b; cout << "\nBook? (y/n): "; cin >> b; if(b=='y') sys.rentCar();}
         if(c==2){string k; cout << "Keyword: "; cin >> k; sys.search(k);}
