@@ -4,13 +4,14 @@
 
 using namespace std;
 
-// Colors
+// ANSI Escape Codes for Terminal Colors
 #define RED "\033[31m"
 #define GRN "\033[32m"
 #define YEL "\033[33m"
 #define CYN "\033[36m"
 #define RST "\033[0m"
 
+// Structure to represent a Car object
 struct Car{
     string id, makeModel, trans, status;
     int year, hp, ts;
@@ -18,27 +19,31 @@ struct Car{
     Car(string i, string m, int y, int h, int t, string tr, double r){
         id = i; makeModel = m; year = y; hp = h; ts = t; trans = tr; rate = r; status = "Available";
     }
+    // Formats car data into a clean table row
     void displayRow() const {
         cout << "| " << left << setw(8) << id << "| " << left << setw(35) << makeModel << "| " << left << setw(6) << year << "| " << left << setw(5) << hp << "| " << left << setw(5) << ts << "| " << left << setw(5) << trans << "| $" << left << setw(8) << rate << "| " << left << setw(12) << status << " |" << endl;
     }
 };
 
+// Node for Linked List and Separate Chaining in Hash Table
 struct Node{
     Car* data; Node* next;
     Node(Car* c){data = c; next = NULL;}
 };
 
-// Queue - Service Bay (Array Implementation)
+// Queue Implementation (Circular Array) for the Wash Bay
 class ServiceQueue{
     Car* queue[10]; int front, rear, size;
 public:
     ServiceQueue(){front = 0; rear = -1; size = 0;}
     bool isFull(){return size == 10;}
     bool isEmpty(){return size == 0;}
+    // FIFO: Adds car to the back of the queue
     void enqueue(Car* c){
         if(isFull()){cout << RED << "Bay Full!" << RST << endl; return;}
         rear = (rear + 1) % 10; queue[rear] = c; size++; c->status = "In-Service";
     }
+    // FIFO: Removes car from the front after service
     Car* dequeue(){
         if(isEmpty()){return NULL;}
         Car* c = queue[front]; front = (front + 1) % 10; size--; c->status = "Available"; return c;
@@ -51,17 +56,20 @@ public:
     }
 };
 
+// Node for Stack History
 struct LogNode{
     string log; LogNode* next;
     LogNode(string s){log = s; next = NULL;}
 };
 
-// Stack - Rental/Search History (Linked Implementation)
+// Stack Implementation (Linked List) for Activity Logs
 class HistoryStack{
     LogNode* top;
 public:
     HistoryStack(){top = NULL;}
+    // LIFO: Pushes new activity to the top of the stack
     void push(string s){LogNode* n = new LogNode(s); n->next = top; top = n;}
+    // LIFO: Displays logs starting from the most recent
     void display(string title){
         LogNode* t = top; cout << CYN << "\n--- " << title << " ---" << RST << endl;
         if(!t){cout << "Empty" << endl; return;}
@@ -69,11 +77,12 @@ public:
     }
 };
 
-// Hash Table - Fast ID Lookup
+// Hash Table for O(1) Search Complexity
 class HashTable{
     Node* table[50];
 public:
     HashTable(){for(int i = 0; i < 50; i++) table[i] = NULL;}
+    // Simple ASCII sum hash function to map IDs to indexes
     int hashFn(string id){
         int s = 0; for(int i = 0; i < id.length(); i++) s += id[i];
         return s % 50;
@@ -81,6 +90,7 @@ public:
     void insert(Car* c){
         int idx = hashFn(c->id); Node* n = new Node(c); n->next = table[idx]; table[idx] = n;
     }
+    // Direct lookup by hashing the key
     Car* search(string id){
         Node* t = table[hashFn(id)];
         while(t){if(t->data->id == id) return t->data; t = t->next;}
@@ -95,10 +105,12 @@ public:
     }
 };
 
+// Linked List Class for the Main Showroom Fleet
 class Showroom{
     Node* head; HashTable* ht;
 public:
     Showroom(HashTable* h){head = NULL; ht = h;}
+    // Adds a new car to the end of the Linked List
     void add(Car* c){
         Node* n = new Node(c);
         if(!head){head = n;} else{Node* t = head; while(t->next) t = t->next; t->next = n;}
@@ -110,24 +122,27 @@ public:
         cout << "--------------------------------------------------------------------------------------------------------" << RST << endl;
         Node* t = head; while(t){t->data->displayRow(); t = t->next;}
     }
+    // Linear Search: Traverses the list to find matching keywords
     void searchBrand(string k){
         Node* t = head; bool f = false;
         while(t){if(t->data->makeModel.find(k) != string::npos){t->data->displayRow(); f = true;} t = t->next;}
         if(!f) cout << RED << "No matches found." << RST << endl;
     }
-    // Sorting: Improved Selection Sort
+    // Selection Sort: Sorts cars by price in descending order
     void sortByPrice(){
         for(Node* i = head; i; i = i->next)
             for(Node* j = i->next; j; j = j->next)
                 if(i->data->rate < j->data->rate){Car* t = i->data; i->data = j->data; j->data = t;}
         cout << GRN << "Sorted by Price (Desc)" << RST << endl;
     }
+    // Selection Sort: Sorts cars by Horsepower in descending order
     void sortByHP(){
         for(Node* i = head; i; i = i->next)
             for(Node* j = i->next; j; j = j->next)
                 if(i->data->hp < j->data->hp){Car* t = i->data; i->data = j->data; j->data = t;}
         cout << GRN << "Sorted by Horsepower (Desc)" << RST << endl;
     }
+    // Deletes car from Linked List and Hash Table
     void del(string id){
         Node *t = head, *p = NULL;
         while(t && t->data->id != id){p = t; t = t->next;}
@@ -138,6 +153,7 @@ public:
     Car* get(string id){return ht->search(id);}
 };
 
+// Displays the branded ASCII Logo
 void header(){
     cout << CYN << "  _______ _    _  ______   _____             _____   _____    ____    _____  _  __" << endl;
     cout << " |__   __| |  | | |  ____| |  __ \\    /\\    |  __ \\ |  __ \\  / __ \\  / ____|| |/ /" << endl;
@@ -155,6 +171,7 @@ void header(){
     cout << "==================================================================================\n" << endl;
 }
 
+// Generates a professional receipt for the customer
 void printReceipt(Car* c, int age, int days){
     cout << GRN << "\n========================================" << endl;
     cout << "          THE PADDOCK CLUB RECEIPT" << endl;
@@ -168,11 +185,12 @@ void printReceipt(Car* c, int age, int days){
     cout << "========================================" << RST << endl;
 }
 
-// Input protection function
+// Handles invalid inputs (e.g., characters instead of numbers)
 void clearInput(){cin.clear(); cin.ignore(1000, '\n');}
 
 int main(){
     HashTable ht; Showroom sr(&ht); ServiceQueue sq; HistoryStack rs, ss;
+    // Initializing the enthusiast fleet
     sr.add(new Car("MB01", "Mercedes C218 CLS63", 2014, 577, 300, "Auto", 800));
     sr.add(new Car("MB02", "Mercedes W204 C63 Black Series", 2012, 510, 300, "Auto", 1200));
     sr.add(new Car("MB03", "Mercedes C197 SLS AMG Black Series", 2014, 622, 315, "Auto", 2500));
@@ -207,6 +225,7 @@ int main(){
             cout << "Car ID: "; cin >> id; Car* car = sr.get(id);
             if(car && car->status == "Available"){
                 cout << "Age: "; if(!(cin >> age)){cout << RED << "Invalid age!" << RST << endl; clearInput(); continue;}
+                // High-performance safety check logic
                 if(car->hp > 500 && age < 25){cout << RED << "Too powerful for your age! 25+ required." << RST << endl;}
                 else{
                     cout << "Days: "; if(!(cin >> days)){cout << RED << "Invalid days!" << RST << endl; clearInput(); continue;}
