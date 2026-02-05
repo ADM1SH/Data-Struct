@@ -223,10 +223,10 @@ int main(){
     sr.add(new Car("BM03", "BMW F87 M2 CS", 2020, 444, 280, "Auto", 900, 2));
 
     sr.add(new Car("FE01", "Ferrari F12 Berlinetta", 2015, 730, 340, "Auto", 2200, 1));
-    sr.add(new Car("FE02", "Ferrari 812 Competizione", 2022, 819, 340, "Auto", 4500, 1));
-    sr.add(new Car("FE03", "Ferrari 360 Challenge Stradale", 2004, 420, 300, "F1", 1600, 1));
-
-    sr.add(new Car("RN01", "Renault Clio V6 Phase 2", 2005, 252, 245, "Man", 600, 1));
+        sr.add(new Car("FE02", "Ferrari 812 Competizione", 2022, 819, 340, "Auto", 4500, 1));
+        sr.add(new Car("FE03", "Ferrari 360 Challenge Stradale", 2004, 420, 300, "F1", 1600, 1));
+        sr.add(new Car("FE40", "Ferrari F40 (Icon)", 1987, 471, 324, "Man", 8000, 1));
+        sr.add(new Car("RN01", "Renault Clio V6 Phase 2", 2005, 252, 245, "Man", 600, 1));
     sr.add(new Car("AL01", "Alpine A110s", 2023, 288, 260, "Auto", 550, 2));
 
     sr.add(new Car("MM01", "Mercedes-Maybach 62S Coupe", 2011, 604, 250, "Auto", 5000, 1));
