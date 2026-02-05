@@ -268,7 +268,7 @@ int main(){
                 }
             } else cout << RED << "Access Denied!" << RST << endl;
         }
-        cout << "\n(Enter to continue...)"; cin.ignore(); cin.get();
+        cout << "\n(Enter to continue...)\n"; cin.ignore(); cin.get();
     }
     return 0;
 }
