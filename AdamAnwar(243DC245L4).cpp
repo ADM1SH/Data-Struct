@@ -4,74 +4,75 @@
 
 using namespace std;
 
-// High-End UI Colors
+// High-End UI Colors for Terminal Branding
 #define RED "\033[31m"
 #define GRN "\033[32m"
 #define YEL "\033[33m"
 #define CYN "\033[36m"
 #define RST "\033[0m"
 
-// Lowercase helper for case-insensitive search
+// Algorithm: Lowercase helper to enable Case-Insensitive searching
 string toLower(string s){
     for(int i = 0; i < s.length(); i++) if(s[i] >= 'A' && s[i] <= 'Z') s[i] += 32;
     return s;
 }
 
-// Structure to hold car information
+// Data Structure: Struct to represent a Vehicle (The main Data object)
 struct Car{
     string id, makeModel, trans, status;
     int year, hp, ts, stock, maxStock; 
     double rate;
-    // Constructor: status depends on initial stock
+    // Constructor initializes car data and determines availability based on stock
     Car(string i, string m, int y, int h, int t, string tr, double r, int s){
         id = i; makeModel = m; year = y; hp = h; ts = t; trans = tr; rate = r; stock = s; maxStock = s; status = (stock > 0) ? "Available" : "No Stock";
     }
-    // Formats car details for the catalog view
+    // Logic: Formats vehicle specs into a professional showroom table row
     void displayRow() const {
         string s_txt = (stock > 0) ? to_string(stock) : "OUT";
         cout << "| " << left << setw(8) << id << "| " << left << setw(35) << makeModel << "| " << left << setw(5) << hp << "hp | " << left << setw(5) << trans << "| $" << left << setw(8) << rate << "| " << left << setw(5) << s_txt << "| " << left << setw(12) << status << " |" << endl;
     }
 };
 
-// Customer database entry for the admin list
+// Data Structure: Struct for Customer Database (Linked List Node)
 struct Cust{
     string name, phone, carID;
     Cust* next;
     Cust(string n, string p, string c){name = n; phone = p; carID = c; next = NULL;}
 };
 
-// Generic linked list node
+// Data Structure: Basic Node used for the Showroom Linked List and Hash Table Chaining
 struct Node{
     Car* data; Node* next;
     Node(Car* c){data = c; next = NULL;}
 };
 
-// Queue (Circular Array) for processing returned cars
+// Data Structure: Queue (Circular Array Implementation) for the Service Bay
 class ServiceQueue{
     Car* queue[10]; int front, rear, size;
 public:
     ServiceQueue(){front = 0; rear = -1; size = 0;}
     bool isFull(){return size == 10;}
     bool isEmpty(){return size == 0;}
-    // Enqueue: Car enters service bay after rental
+    // Logic: Enqueue (FIFO) - Adds a returned car to the back of the wash bay queue
     void enqueue(Car* c){
         if(isFull()){cout << RED << "Bay Full!" << RST << endl; return;}
         rear = (rear + 1) % 10; queue[rear] = c; size++; c->status = "In-Service";
     }
-    // Dequeue: Car is cleaned and stock is restored
+    // Logic: Dequeue (FIFO) - Processes car from the front, cleaning it and restoring stock
     Car* dequeue(){
         if(isEmpty()){return NULL;}
         Car* c = queue[front]; front = (front + 1) % 10; size--; 
         if(c->stock < c->maxStock) c->stock++; 
         c->status = (c->stock > 0) ? "Available" : "No Stock"; return c;
     }
+    // Logic: Traverses the circular array to display current queue status
     void display(){
         if(isEmpty()){cout << YEL << "Wash Bay Empty" << RST << endl; return;}
         cout << CYN << "\n--- WASH BAY QUEUE ---" << RST << endl;
         for(int i = 0, j = front; i < size; i++, j = (j + 1) % 10)
             cout << i + 1 << ". " << queue[j]->makeModel << " [" << queue[j]->id << "]" << endl;
     }
-    // Check if a specific car is currently in the wash bay
+    // Integrity Check: Verifies if a specific ID is currently locked in service
     bool isInService(string id){
         for(int i = 0, j = front; i < size; i++, j = (j + 1) % 10)
             if(queue[j]->id == id) return true;
@@ -79,19 +80,20 @@ public:
     }
 };
 
-// Simple node for activity history
+// Data Structure: Basic node for the History Stack
 struct LogNode{
     string log; LogNode* next;
     LogNode(string s){log = s; next = NULL;}
 };
 
-// Stack (Linked List) for LIFO activity tracking
+// Data Structure: Stack (Linked List Implementation) for Activity Logs
 class HistoryStack{
     LogNode* top;
 public:
     HistoryStack(){top = NULL;}
-    // Push: Adds most recent activity to top
+    // Logic: Push (LIFO) - Adds most recent rental or search to the top of the stack
     void push(string s){LogNode* n = new LogNode(s); n->next = top; top = n;}
+    // Logic: Stack Traversal - Displays all activity from newest to oldest
     void display(string title){
         LogNode* t = top; cout << CYN << "\n--- " << title << " ---" << RST << endl;
         if(!t){cout << "Empty" << endl; return;}
@@ -99,23 +101,27 @@ public:
     }
 };
 
-// Hash Table with separate chaining for O(1) searches
+// Data Structure: Hash Table for O(1) Search Complexity
 class HashTable{
     Node* table[50];
 public:
     HashTable(){for(int i = 0; i < 50; i++) table[i] = NULL;}
+    // Logic: Hash Function - Converts Car ID string into an integer index (0-49)
     int hashFn(string id){
         int s = 0; for(unsigned i = 0; i < id.length(); i++) s += id[i];
         return s % 50;
     }
+    // Logic: Insertion - Uses "Separate Chaining" to handle collisions at the same index
     void insert(Car* c){
         int idx = hashFn(c->id); Node* n = new Node(c); n->next = table[idx]; table[idx] = n;
     }
+    // Logic: Search - Direct index lookup using the hash function for high speed
     Car* search(string id){
         Node* t = table[hashFn(id)];
         while(t){if(t->data->id == id) return t->data; t = t->next;}
         return NULL;
     }
+    // Logic: Deletion - Removes the car from the hash box
     void remove(string id){
         int idx = hashFn(id); Node *t = table[idx], *p = NULL;
         while(t && t->data->id != id){p = t; t = t->next;}
@@ -125,23 +131,25 @@ public:
     }
 };
 
-// Main Inventory Linked List
+// Data Structure: Main Linked List for Fleet Management (Showroom)
 class Showroom{
     Node* head; HashTable* ht;
 public:
     Showroom(HashTable* h){head = NULL; ht = h;}
+    // Logic: Insertion - Appends a new vehicle to the end of the showroom list
     void add(Car* c){
         Node* n = new Node(c);
         if(!head){head = n;} else{Node* t = head; while(t->next) t = t->next; t->next = n;}
         ht->insert(c);
     }
+    // Logic: Traversal - Walks through the entire list to display all vehicles
     void display(){
         cout << CYN << "--------------------------------------------------------------------------------------------------------" << endl;
         cout << "| ID      | Make & Model                       | Power  | TR   | Rate     | Stock| Status       |" << endl;
         cout << "--------------------------------------------------------------------------------------------------------" << RST << endl;
         Node* t = head; while(t){t->data->displayRow(); t = t->next;}
     }
-    // Case-insensitive search: keyword matching in make/model
+    // Algorithm: Linear Search with case-insensitive matching
     void searchBrand(string k){
         Node* t = head; bool f = false; string lowerK = toLower(k);
         while(t){
@@ -150,7 +158,7 @@ public:
         }
         if(!f) cout << RED << "No matches found." << RST << endl;
     }
-    // Selection Sort for Descending Price/HP
+    // Algorithm: Selection Sort - Rearranges list pointers based on Rate/Horsepower
     void sortByPrice(){
         for(Node* i = head; i; i = i->next)
             for(Node* j = i->next; j; j = j->next)
@@ -161,10 +169,11 @@ public:
             for(Node* j = i->next; j; j = j->next)
                 if(i->data->hp < j->data->hp){Car* t = i->data; i->data = j->data; j->data = t;}
     }
+    // Logic: Admin Deletion - Safely removes vehicles while protecting memory integrity
     void del(string id, ServiceQueue& sq){
         Car* c = ht->search(id);
         if(!c){cout << RED << "ID not found." << RST << endl; return;}
-        // Integrity Guard: Don't delete cars in service or rented
+        // Integrity Check: Car must be in showroom (stock full) and not in maintenance
         if(c->status == "In-Service" || sq.isInService(id) || c->stock < c->maxStock){
             cout << RED << "Cannot remove: Car is currently Rented or In-Service." << RST << endl; return;
         }
@@ -176,7 +185,7 @@ public:
     Car* get(string id){return ht->search(id);}
 };
 
-// Branded Header ASCII
+// UI: Branded Header Output
 void header(){
     cout << CYN << "  _______ _    _  ______   _____             _____   _____    ____    _____  _  __" << endl;
     cout << " |__   __| |  | | |  ____| |  __ \\    /\\    |  __ \\ |  __ \\  / __ \\  / ____|| |/ /" << endl;
@@ -194,13 +203,15 @@ void header(){
     cout << "==================================================================================\n" << endl;
 }
 
+// Logic: Robust Input Sanitization
 void clearInput(){cin.clear(); cin.ignore(1000, '\n');}
 
 int main(){
+    // Initializing all Data Structure objects
     HashTable ht; Showroom sr(&ht); ServiceQueue sq; HistoryStack rs, ss;
     Cust* custHead = NULL; string pass = "paddock77";
     
-    // Default Enthusiast Fleet with Rarity levels
+    // Population: Enthusiast fleet with custom rarity (stock) values
     sr.add(new Car("MB01", "Mercedes C218 CLS63", 2014, 577, 300, "Auto", 800, 2));
     sr.add(new Car("MB02", "Mercedes W204 C63 Black Series", 2012, 510, 300, "Auto", 1200, 1));
     sr.add(new Car("MB03", "Mercedes C197 SLS AMG Black Series", 2014, 622, 315, "Auto", 2500, 1));
@@ -224,7 +235,7 @@ int main(){
 
     int c, age, days; string id, key, pInput;
     while(true){
-        system("clear");
+        system("clear"); // UI Logic: Clears terminal for a modern app experience
         header();
         cout << "1. Showroom\n2. Search Car\n3. Sort Catalog\n4. Rent a Car\n5. Return Car\n6. Wash Bay\n7. History Logs\n8. Admin Mode\n0. Exit\nChoice: "; 
         if(!(cin >> c)){cout << RED << "Menu Input Error!" << RST << endl; clearInput(); continue;}
@@ -235,11 +246,13 @@ int main(){
                 cout << "Enter Car ID: "; cin >> id; Car* car = sr.get(id);
                 if(car && car->stock > 0){
                     cout << "Age: "; if(!(cin >> age) || age < 18){cout << RED << "Invalid Age!" << RST << endl; clearInput(); goto wait;}
+                    // Safety Logic: Blocks high-power rentals for younger drivers
                     if(car->hp > 500 && age < 25){cout << RED << "Denied: Power level restricted." << RST << endl;}
                     else{
                         string name, phone; cout << "Name: "; cin.ignore(); getline(cin, name);
                         cout << "Phone: "; cin >> phone; cout << "Days: "; if(!(cin >> days) || days <= 0){cout << RED << "Invalid!" << RST << endl; clearInput(); goto wait;}
                         car->stock--; if(car->stock == 0) car->status = "Rented (Out)";
+                        // Database Logic: Adds to Customer Linked List
                         Cust* nC = new Cust(name, phone, id); nC->next = custHead; custHead = nC;
                         rs.push("Rented " + car->makeModel + " to " + name);
                         cout << GRN << "\n--- RECEIPT ---\nCar: " << car->makeModel << "\nTotal: $" << car->rate*days << "\nApproved!" << RST << endl;
