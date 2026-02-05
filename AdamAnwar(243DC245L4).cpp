@@ -4,59 +4,60 @@
 
 using namespace std;
 
-// ANSI Colors for high-end UI
+// High-End UI Colors
 #define RED "\033[31m"
 #define GRN "\033[32m"
 #define YEL "\033[33m"
 #define CYN "\033[36m"
 #define RST "\033[0m"
 
-// Structure representing a vehicle in the fleet
+// Structure to hold car information
 struct Car{
     string id, makeModel, trans, status;
-    int year, hp, ts, stock, maxStock; // Track stock levels
+    int year, hp, ts, stock, maxStock; 
     double rate;
+    // Constructor: status depends on initial stock
     Car(string i, string m, int y, int h, int t, string tr, double r, int s){
         id = i; makeModel = m; year = y; hp = h; ts = t; trans = tr; rate = r; stock = s; maxStock = s; status = (stock > 0) ? "Available" : "No Stock";
     }
-    // Formats a row for the showroom table
+    // Formats car details for the catalog view
     void displayRow() const {
         string s_txt = (stock > 0) ? to_string(stock) : "OUT";
         cout << "| " << left << setw(8) << id << "| " << left << setw(35) << makeModel << "| " << left << setw(5) << hp << "hp | " << left << setw(5) << trans << "| $" << left << setw(8) << rate << "| " << left << setw(5) << s_txt << "| " << left << setw(12) << status << " |" << endl;
     }
 };
 
-// Customer database entry (Linked List Node)
+// Customer database entry for the admin list
 struct Cust{
     string name, phone, carID;
     Cust* next;
     Cust(string n, string p, string c){name = n; phone = p; carID = c; next = NULL;}
 };
 
-// Generic Node for Linked Lists and Hash Table
+// Generic linked list node
 struct Node{
     Car* data; Node* next;
     Node(Car* c){data = c; next = NULL;}
 };
 
-// Queue Implementation (Circular Array) for the Wash Bay
+// Queue (Circular Array) for processing returned cars
 class ServiceQueue{
     Car* queue[10]; int front, rear, size;
 public:
     ServiceQueue(){front = 0; rear = -1; size = 0;}
     bool isFull(){return size == 10;}
     bool isEmpty(){return size == 0;}
-    // Enqueue: Car enters service bay
+    // Enqueue: Car enters service bay after rental
     void enqueue(Car* c){
         if(isFull()){cout << RED << "Bay Full!" << RST << endl; return;}
         rear = (rear + 1) % 10; queue[rear] = c; size++; c->status = "In-Service";
     }
-    // Dequeue: Car is washed and returned to showroom stock
+    // Dequeue: Car is cleaned and stock is restored
     Car* dequeue(){
         if(isEmpty()){return NULL;}
         Car* c = queue[front]; front = (front + 1) % 10; size--; 
-        if(c->stock < c->maxStock) c->stock++; // Protect against stock inflation
-        c->status = "Available"; return c;
+        if(c->stock < c->maxStock) c->stock++; 
+        c->status = (c->stock > 0) ? "Available" : "No Stock"; return c;
     }
     void display(){
         if(isEmpty()){cout << YEL << "Wash Bay Empty" << RST << endl; return;}
@@ -64,19 +65,26 @@ public:
         for(int i = 0, j = front; i < size; i++, j = (j + 1) % 10)
             cout << i + 1 << ". " << queue[j]->makeModel << " [" << queue[j]->id << "]" << endl;
     }
+    // Check if a specific car is currently in the wash bay
+    bool isInService(string id){
+        for(int i = 0, j = front; i < size; i++, j = (j + 1) % 10)
+            if(queue[j]->id == id) return true;
+        return false;
+    }
 };
 
-// Stack Implementation (Linked List) for Activity Tracking
+// Simple node for activity history
 struct LogNode{
     string log; LogNode* next;
     LogNode(string s){log = s; next = NULL;}
 };
 
+// Stack (Linked List) for LIFO activity tracking
 class HistoryStack{
     LogNode* top;
 public:
     HistoryStack(){top = NULL;}
-    // Push activity to top (LIFO)
+    // Push: Adds most recent activity to top
     void push(string s){LogNode* n = new LogNode(s); n->next = top; top = n;}
     void display(string title){
         LogNode* t = top; cout << CYN << "\n--- " << title << " ---" << RST << endl;
@@ -85,13 +93,13 @@ public:
     }
 };
 
-// Hash Table Implementation for fast O(1) ID lookups
+// Hash Table with separate chaining for O(1) searches
 class HashTable{
     Node* table[50];
 public:
     HashTable(){for(int i = 0; i < 50; i++) table[i] = NULL;}
     int hashFn(string id){
-        int s = 0; for(int i = 0; i < id.length(); i++) s += id[i];
+        int s = 0; for(unsigned i = 0; i < id.length(); i++) s += id[i];
         return s % 50;
     }
     void insert(Car* c){
@@ -111,7 +119,7 @@ public:
     }
 };
 
-// Linked List Class for the Showroom Fleet
+// Main Inventory Linked List
 class Showroom{
     Node* head; HashTable* ht;
 public:
@@ -127,13 +135,13 @@ public:
         cout << "--------------------------------------------------------------------------------------------------------" << RST << endl;
         Node* t = head; while(t){t->data->displayRow(); t = t->next;}
     }
-    // Search: Uses keyword matching in Linked List
+    // Search: keyword matching in make/model
     void searchBrand(string k){
         Node* t = head; bool f = false;
         while(t){if(t->data->makeModel.find(k) != string::npos){t->data->displayRow(); f = true;} t = t->next;}
         if(!f) cout << RED << "No matches found." << RST << endl;
     }
-    // Sorting: Selection Sort Implementation
+    // Selection Sort for Descending Price/HP
     void sortByPrice(){
         for(Node* i = head; i; i = i->next)
             for(Node* j = i->next; j; j = j->next)
@@ -144,17 +152,22 @@ public:
             for(Node* j = i->next; j; j = j->next)
                 if(i->data->hp < j->data->hp){Car* t = i->data; i->data = j->data; j->data = t;}
     }
-    void del(string id){
+    void del(string id, ServiceQueue& sq){
+        Car* c = ht->search(id);
+        if(!c){cout << RED << "ID not found." << RST << endl; return;}
+        // Integrity Guard: Don't delete cars in service or rented
+        if(c->status == "In-Service" || sq.isInService(id) || c->stock < c->maxStock){
+            cout << RED << "Cannot remove: Car is currently Rented or In-Service." << RST << endl; return;
+        }
         Node *t = head, *p = NULL;
         while(t && t->data->id != id){p = t; t = t->next;}
-        if(!t){cout << RED << "Not found" << RST << endl; return;}
         if(!p) head = t->next; else p->next = t->next;
-        ht->remove(id); delete t->data; delete t; cout << YEL << "Removed" << RST << endl;
+        ht->remove(id); delete t->data; delete t; cout << YEL << "Vehicle Decommissioned." << RST << endl;
     }
     Car* get(string id){return ht->search(id);}
 };
 
-// Branded Header
+// Branded Header ASCII
 void header(){
     cout << CYN << "  _______ _    _  ______   _____             _____   _____    ____    _____  _  __" << endl;
     cout << " |__   __| |  | | |  ____| |  __ \\    /\\    |  __ \\ |  __ \\  / __ \\  / ____|| |/ /" << endl;
@@ -172,14 +185,13 @@ void header(){
     cout << "==================================================================================\n" << endl;
 }
 
-// Input cleaning to prevent character loops
 void clearInput(){cin.clear(); cin.ignore(1000, '\n');}
 
 int main(){
     HashTable ht; Showroom sr(&ht); ServiceQueue sq; HistoryStack rs, ss;
     Cust* custHead = NULL; string pass = "paddock77";
     
-    // Initializing inventory with specific rarity/stock levels
+    // Default Enthusiast Fleet with Rarity levels
     sr.add(new Car("MB01", "Mercedes C218 CLS63", 2014, 577, 300, "Auto", 800, 2));
     sr.add(new Car("MB02", "Mercedes W204 C63 Black Series", 2012, 510, 300, "Auto", 1200, 1));
     sr.add(new Car("MB03", "Mercedes C197 SLS AMG Black Series", 2014, 622, 315, "Auto", 2500, 1));
@@ -205,47 +217,47 @@ int main(){
     while(true){
         header();
         cout << "1. Showroom\n2. Search Car\n3. Sort Catalog\n4. Rent a Car\n5. Return Car\n6. Wash Bay\n7. History Logs\n8. Admin Mode\n0. Exit\nChoice: "; 
-        if(!(cin >> c)){cout << RED << "Menu Error!" << RST << endl; clearInput(); continue;}
+        if(!(cin >> c)){cout << RED << "Menu Input Error!" << RST << endl; clearInput(); continue;}
         if(c == 0) break;
         if(c == 1) sr.display();
         if(c == 2){cout << "Keyword: "; cin >> key; ss.push("Searched: " + key); sr.searchBrand(key);}
-        if(c == 3){int s; cout << "1.Price 2.HP: "; cin >> s; if(s == 1) sr.sortByPrice(); else sr.sortByHP(); sr.display();}
+        if(c == 3){int s; cout << "Sort by: [1.Price 2.HP]: "; cin >> s; if(s == 1) sr.sortByPrice(); else sr.sortByHP(); sr.display();}
         if(c == 4){
             cout << "Car ID: "; cin >> id; Car* car = sr.get(id);
-            if(car && car->stock > 0 && car->status == "Available"){
-                cout << "Age: "; if(!(cin >> age) || age < 18){cout << RED << "Invalid Age!" << RST << endl; clearInput(); continue;}
-                if(car->hp > 500 && age < 25){cout << RED << "Denied: Power level restricted for drivers under 25." << RST << endl;}
+            if(car && car->stock > 0){
+                cout << "Age: "; if(!(cin >> age) || age < 18){cout << RED << "Invalid Age (Min 18)!" << RST << endl; clearInput(); continue;}
+                if(car->hp > 500 && age < 25){cout << RED << "Insurance Denied: High-power car requires age 25+." << RST << endl;}
                 else{
                     string name, phone; cout << "Name: "; cin.ignore(); getline(cin, name);
                     cout << "Phone: "; cin >> phone; 
-                    cout << "Days: "; if(!(cin >> days) || days <= 0){cout << RED << "Invalid Rental Period!" << RST << endl; clearInput(); continue;}
-                    car->stock--; if(car->stock == 0) car->status = "Rented (Last)";
+                    cout << "Days: "; if(!(cin >> days) || days <= 0){cout << RED << "Invalid rental period!" << RST << endl; clearInput(); continue;}
+                    car->stock--; if(car->stock == 0) car->status = "Rented (Out)";
                     Cust* nC = new Cust(name, phone, id); nC->next = custHead; custHead = nC;
                     rs.push("Rented " + car->makeModel + " to " + name);
-                    cout << GRN << "\n--- RECEIPT ---\nCar: " << car->makeModel << "\nPeriod: " << days << " Day(s)\nTotal: $" << car->rate*days << "\nApproved!" << RST << endl;
+                    cout << GRN << "\n--- RECEIPT ---\nCar: " << car->makeModel << "\nTotal: $" << car->rate*days << "\nApproved!" << RST << endl;
                 }
-            } else cout << RED << "Error: No Stock or Car currently unavailable." << RST << endl;
+            } else cout << RED << "Error: No Stock or Invalid ID!" << RST << endl;
         }
         if(c == 5){
             cout << "Car ID: "; cin >> id; Car* car = sr.get(id);
-            if(car && car->stock < car->maxStock){ // Only return if car was actually out
+            if(car && car->stock < car->maxStock && car->status != "In-Service"){
                 sq.enqueue(car); rs.push("Returned " + car->makeModel); cout << GRN << "Sent to Wash Bay" << RST << endl;
-            } else cout << RED << "Error: ID not found or all units already in showroom." << RST << endl;
+            } else cout << RED << "Error: Car is not currently rented or already in service." << RST << endl;
         }
-        if(c == 6){sq.display(); if(!sq.isEmpty()){char y; cout << "Process car at front? (y/n): "; cin >> y; if(y == 'y') sq.dequeue();}}
+        if(c == 6){sq.display(); if(!sq.isEmpty()){char y; cout << "Process car? (y/n): "; cin >> y; if(y == 'y') sq.dequeue();}}
         if(c == 7){rs.display("RENTAL LOGS"); ss.display("SEARCH HISTORY");}
         if(c == 8){
             cout << "Admin Password: "; cin >> pInput;
             if(pInput == pass){
-                int a; cout << "1.Add Car 2.Delete Car 3.Customer Database: "; cin >> a;
+                int a; cout << "1.Add Car 2.Decommission 3.Cust Database: "; cin >> a;
                 if(a == 1){string i, m, t; int y, h, ts, s; double r; cout << "ID Model Year HP TS Trans Rate Stock: "; cin >> i >> m >> y >> h >> ts >> t >> r >> s; sr.add(new Car(i, m, y, h, ts, t, r, s));}
-                if(a == 2){cout << "ID to Remove: "; cin >> id; sr.del(id);}
+                if(a == 2){cout << "ID to Remove: "; cin >> id; sr.del(id, sq);}
                 if(a == 3){
-                    cout << CYN << "\n--- PRIVILEGED CUSTOMER DATABASE ---" << RST << endl;
-                    Cust* tC = custHead; if(!tC) cout << "No current records" << endl;
+                    cout << CYN << "\n--- CUSTOMER DATABASE ---" << RST << endl;
+                    Cust* tC = custHead; if(!tC) cout << "No records" << endl;
                     while(tC){cout << "Name: " << left << setw(15) << tC->name << " | Phone: " << setw(12) << tC->phone << " | Car: " << tC->carID << endl; tC = tC->next;}
                 }
-            } else cout << RED << "Access Denied: Logged security attempt." << RST << endl;
+            } else cout << RED << "Access Denied!" << RST << endl;
         }
         cout << "\n(Enter to continue...)"; cin.ignore(); cin.get();
     }
