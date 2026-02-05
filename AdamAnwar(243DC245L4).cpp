@@ -1,8 +1,4 @@
 #include <iostream>
-#include <string>
-#include <iomanip>
-#include <fstream>
-#include <sstream>
 
 using namespace std;
 
@@ -13,22 +9,44 @@ using namespace std;
 #define CYN "\033[36m"
 #define RST "\033[0m"
 
+// Helper to manually print spaces for table alignment (Replacing setw)
+void printSpace(int width, string s){
+    int len = s.length();
+    if(len >= width) cout << " ";
+    else for(int i = 0; i < width - len; i++) cout << " ";
+}
+
+void printSpaceInt(int width, int n){
+    string s = to_string(n);
+    int len = s.length();
+    if(len >= width) cout << " ";
+    else for(int i = 0; i < width - len; i++) cout << " ";
+}
+
 string toLower(string s){
     for(int i = 0; i < s.length(); i++) if(s[i] >= 'A' && s[i] <= 'Z') s[i] += 32;
     return s;
 }
 
-// Data Structure: Car Struct (The Fleet Object)
+// Data Structure: Car Struct
 struct Car{
     string id, makeModel, trans, status;
-    int year, hp, ts, stock, maxStock, rentalCount; 
+    int year, hp, ts, stock, maxStock; 
     double rate;
-    Car(string i, string m, int y, int h, int t, string tr, double r, int s, int rc = 0){
-        id = i; makeModel = m; year = y; hp = h; ts = t; trans = tr; rate = r; stock = s; maxStock = s; rentalCount = rc; status = (stock > 0) ? "Available" : "No Stock";
+    Car(string i, string m, int y, int h, int t, string tr, double r, int s){
+        id = i; makeModel = m; year = y; hp = h; ts = t; trans = tr; rate = r; stock = s; maxStock = s; status = (stock > 0) ? "Available" : "No Stock";
     }
     void displayRow() const {
         string s_txt = (stock > 0) ? to_string(stock) : "OUT";
-        cout << "| " << left << setw(8) << id << "| " << left << setw(35) << makeModel << "| " << left << setw(5) << hp << "hp | " << left << setw(5) << trans << "| $" << left << setw(8) << rate << "| " << left << setw(5) << s_txt << "| " << left << setw(12) << status << " |" << endl;
+        // Manual formatting
+        cout << "| " << id; printSpace(8, id);
+        cout << "| " << makeModel; printSpace(35, makeModel);
+        cout << "| " << hp << "hp "; printSpaceInt(5, hp);
+        cout << "| " << trans; printSpace(5, trans);
+        cout << "| $" << (int)rate; printSpaceInt(8, (int)rate);
+        cout << "| " << s_txt; printSpace(5, s_txt);
+        cout << "| " << status; printSpace(12, status);
+        cout << " |" << endl;
     }
 };
 
@@ -43,7 +61,7 @@ struct Node{
     Node(Car* c){data = c; next = NULL;}
 };
 
-// Data Structure: Queue (Circular Array) for Wash Bay
+// Data Structure: Queue (Circular Array)
 class ServiceQueue{
     Car* queue[10]; int front, rear, size;
 public:
@@ -78,7 +96,7 @@ struct LogNode{
     LogNode(string s){log = s; next = NULL;}
 };
 
-// Data Structure: Stack (Linked List) for Activity History
+// Data Structure: Stack (Linked List)
 class HistoryStack{
     LogNode* top;
 public:
@@ -91,7 +109,7 @@ public:
     }
 };
 
-// Data Structure: Hash Table for O(1) Quick ID Search
+// Data Structure: Hash Table
 class HashTable{
     Node* table[50];
 public:
@@ -117,7 +135,7 @@ public:
     }
 };
 
-// Main Showroom Fleet Management
+// Main Inventory Linked List
 class Showroom{
     Node* head; HashTable* ht;
 public:
@@ -163,45 +181,6 @@ public:
         ht->remove(id); delete t->data; delete t; cout << YEL << "Decommissioned." << RST << endl;
     }
     Car* get(string id){return ht->search(id);}
-    
-    // Algorithm: Accumulator for Analytics
-    void showAnalytics(double sessionRevenue){
-        double totalValue = 0; Car* popular = NULL;
-        Node* t = head;
-        while(t){
-            totalValue += (t->data->rate * t->data->maxStock);
-            if(!popular || t->data->rentalCount > popular->rentalCount) popular = t->data;
-            t = t->next;
-        }
-        cout << CYN << "\n--- THE PADDOCK ANALYTICS ---" << RST << endl;
-        cout << "Total Fleet Asset Value: $" << fixed << setprecision(2) << totalValue << endl;
-        cout << "Session Rental Revenue:  $" << sessionRevenue << endl;
-        if(popular && popular->rentalCount > 0) 
-            cout << "Most Popular Vehicle:   " << popular->makeModel << " (" << popular->rentalCount << " rentals)" << endl;
-        else cout << "Most Popular Vehicle:   N/A (No rentals yet)" << endl;
-    }
-
-    void saveToFile(){
-        ofstream f("fleet.txt"); Node* t = head;
-        while(t){
-            f << t->data->id << "," << t->data->makeModel << "," << t->data->year << "," 
-              << t->data->hp << "," << t->data->ts << "," << t->data->trans << "," 
-              << t->data->rate << "," << t->data->maxStock << "," << t->data->rentalCount << endl;
-            t = t->next;
-        }
-        f.close();
-    }
-    void loadFromFile(){
-        ifstream f("fleet.txt"); string line;
-        while(getline(f, line)){
-            stringstream ss(line); string i, m, y, h, ts, tr, r, s, rc;
-            getline(ss, i, ','); getline(ss, m, ','); getline(ss, y, ',');
-            getline(ss, h, ','); getline(ss, ts, ','); getline(ss, tr, ',');
-            getline(ss, r, ','); getline(ss, s, ','); getline(ss, rc, ',');
-            if(i != "") add(new Car(i, m, stoi(y), stoi(h), stoi(ts), tr, stod(r), stoi(s), (rc==""?0:stoi(rc))));
-        }
-        f.close();
-    }
 };
 
 void header(){
@@ -225,12 +204,35 @@ void clearInput(){cin.clear(); cin.ignore(1000, '\n');}
 
 int main(){
     HashTable ht; Showroom sr(&ht); ServiceQueue sq; HistoryStack rs, ss;
-    Cust* custHead = NULL; string pass = "paddock77"; double sessionRev = 0;
-    sr.loadFromFile();
+    Cust* custHead = NULL; string pass = "paddock77";
+    
+    // Manual Fleet Population (Since File IO is disabled)
+    sr.add(new Car("MB01", "Mercedes C218 CLS63", 2014, 577, 300, "Auto", 800, 2));
+    sr.add(new Car("MB02", "Mercedes W204 C63 Black Series", 2012, 510, 300, "Auto", 1200, 1));
+    sr.add(new Car("MB03", "Mercedes C197 SLS AMG Black Series", 2014, 622, 315, "Auto", 2500, 1));
+    sr.add(new Car("MB04", "Mercedes R230 SL65 Black Series", 2009, 661, 320, "Auto", 3000, 1));
+    sr.add(new Car("MB05", "Mercedes W222 S65 AMG", 2018, 621, 300, "Auto", 1500, 2));
+    sr.add(new Car("BM01", "BMW F90 M5 CS", 2022, 627, 305, "Auto", 1800, 2));
+    sr.add(new Car("BM02", "BMW G20 M3 CS", 2023, 543, 302, "Auto", 1400, 2));
+    sr.add(new Car("BM03", "BMW F87 M2 CS", 2020, 444, 280, "Auto", 900, 2));
+    sr.add(new Car("FE01", "Ferrari F12 Berlinetta", 2015, 730, 340, "Auto", 2200, 1));
+    sr.add(new Car("FE02", "Ferrari 812 Competizione", 2022, 819, 340, "Auto", 4500, 1));
+    sr.add(new Car("FE03", "Ferrari 360 Challenge Stradale", 2004, 420, 300, "F1", 1600, 1));
+    sr.add(new Car("RN01", "Renault Clio V6 Phase 2", 2005, 252, 245, "Man", 600, 1));
+    sr.add(new Car("AL01", "Alpine A110s", 2023, 288, 260, "Auto", 550, 2));
+    sr.add(new Car("MM01", "Mercedes-Maybach 62S Coupe", 2011, 604, 250, "Auto", 5000, 1));
+    sr.add(new Car("PO01", "Porsche 911 (991.2) Turbo S", 2018, 580, 330, "Auto", 1700, 2));
+    sr.add(new Car("TY01", "Toyota GR Yaris MT", 2025, 280, 230, "Man", 350, 5));
+    sr.add(new Car("TY02", "Toyota GR Corolla MT", 2025, 300, 230, "Man", 380, 5));
+    sr.add(new Car("AM01", "Aston Martin Vanquish Zagato", 2017, 580, 301, "Auto", 2800, 1));
+    sr.add(new Car("AM02", "Aston Martin V12 Vanquish", 2015, 568, 323, "Auto", 1300, 2));
+    sr.add(new Car("PR01", "Proton Satria Neo R3 Lotus", 2013, 145, 205, "Man", 150, 5));
+    sr.add(new Car("FE40", "Ferrari F40 (Icon)", 1987, 471, 324, "Man", 8000, 1));
 
     int c, age, days; string id, key, pInput;
     while(true){
-        system("clear"); header();
+        system("clear");
+        header();
         cout << "1. Showroom\n2. Search Car\n3. Sort Catalog\n4. Rent a Car\n5. Return Car\n6. Wash Bay\n7. History Logs\n8. Admin Mode\n0. Exit\nChoice: "; 
         if(!(cin >> c)){cout << RED << "Error!" << RST << endl; clearInput(); continue;}
         if(c == 0) break;
@@ -244,10 +246,9 @@ int main(){
                     else{
                         string name, phone; cout << "Name: "; cin.ignore(); getline(cin, name);
                         cout << "Phone: "; cin >> phone; cout << "Days: "; if(!(cin >> days) || days <= 0){cout << RED << "Invalid!" << RST << endl; clearInput(); goto wait;}
-                        car->stock--; car->rentalCount++; sessionRev += (car->rate * days);
-                        if(car->stock == 0) car->status = "Rented (Out)";
+                        car->stock--; if(car->stock == 0) car->status = "Rented (Out)";
                         Cust* nC = new Cust(name, phone, id); nC->next = custHead; custHead = nC;
-                        rs.push("Rented " + car->makeModel + " to " + name); sr.saveToFile();
+                        rs.push("Rented " + car->makeModel + " to " + name);
                         cout << GRN << "\n--- RECEIPT ---\nTotal: $" << car->rate*days << "\nApproved!" << RST << endl;
                     }
                 } else cout << RED << "Unavailable!" << RST << endl;
@@ -263,10 +264,9 @@ int main(){
                 else{
                     string name, phone; cout << "Name: "; cin.ignore(); getline(cin, name);
                     cout << "Phone: "; cin >> phone; cout << "Days: "; if(!(cin >> days) || days <= 0){cout << RED << "Error!" << RST << endl; clearInput(); continue;}
-                    car->stock--; car->rentalCount++; sessionRev += (car->rate * days);
-                    if(car->stock == 0) car->status = "Rented (Out)";
+                    car->stock--; if(car->stock == 0) car->status = "Rented (Out)";
                     Cust* nC = new Cust(name, phone, id); nC->next = custHead; custHead = nC;
-                    rs.push("Rented " + car->makeModel); sr.saveToFile(); cout << GRN << "Approved!" << RST << endl;
+                    rs.push("Rented " + car->makeModel); cout << GRN << "Approved!" << RST << endl;
                 }
             } else cout << RED << "Unavailable!" << RST << endl;
         }
@@ -281,21 +281,23 @@ int main(){
         if(c == 8){
             cout << "Password: "; cin >> pInput;
             if(pInput == pass){
-                int a; cout << "1.Add 2.Delete 3.Cust Database 4.Analytics: "; cin >> a;
+                int a; cout << "1.Add 2.Delete 3.Cust Database: "; cin >> a;
                 if(a == 1){
                     string i, m, t; int y, h, ts, s; double r; 
                     cout << "ID: "; cin >> i; cout << "Model: "; cin.ignore(); getline(cin, m);
                     cout << "Year: "; cin >> y; cout << "HP: "; cin >> h;
                     cout << "TS: "; cin >> ts; cout << "Trans: "; cin >> t;
                     cout << "Rate: "; cin >> r; cout << "Stock: "; cin >> s;
-                    sr.add(new Car(i, m, y, h, ts, t, r, s)); sr.saveToFile();
+                    sr.add(new Car(i, m, y, h, ts, t, r, s));
                 }
-                if(a == 2){cout << "ID: "; cin >> id; sr.del(id, sq); sr.saveToFile();}
+                if(a == 2){cout << "ID: "; cin >> id; sr.del(id, sq);}
                 if(a == 3){
                     Cust* tC = custHead; if(!tC) cout << "No records" << endl;
-                    while(tC){cout << "Name: " << left << setw(15) << tC->name << " | Phone: " << tC->phone << endl; tC = tC->next;}
+                    while(tC){
+                        cout << "Name: " << tC->name; printSpace(15, tC->name);
+                        cout << " | Phone: " << tC->phone << endl; tC = tC->next;
+                    }
                 }
-                if(a == 4) sr.showAnalytics(sessionRev);
             } else cout << RED << "Denied!" << RST << endl;
         }
         wait: cout << "\n(Enter to continue...)"; cin.ignore(); cin.get();
