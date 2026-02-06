@@ -58,7 +58,18 @@ struct Car {
     }
 };
 
-struct Cust { string name, phone, carID; Cust* next; Cust(string n, string p, string c) : name(n), phone(p), carID(c), next(NULL) {} };
+struct Cust { 
+    string name, phone, carID, date; 
+    Cust* next; 
+    Cust(string n, string p, string c, string d = "") : name(n), phone(p), carID(c), date(d), next(NULL) {
+        if (date == "") {
+            time_t now = time(0);
+            char* dt = ctime(&now);
+            date = dt ? string(dt) : "Unknown Date";
+            if (!date.empty() && date[date.length()-1] == '\n') date.erase(date.length()-1);
+        }
+    } 
+};
 struct Node { Car* data; Node* next; Node(Car* c) : data(c), next(NULL) {} };
 
 // Queue: Circular Array for Wash Bay
@@ -252,8 +263,7 @@ void updateRevenue(double rev) {
 void saveCust(Cust* h, Showroom& sr) {
     ofstream f(getDataPath("db_customers.csv").c_str());
     for (Cust* t = h; t; t = t->next) {
-        Car* c = sr.get(t->carID);
-        f << t->name << "," << t->phone << "," << (c ? c->makeModel : "Unknown") << "," << (c ? c->rate : 0) << ",Fri Feb 6 12:15:10 2026" << endl;
+        f << t->name << "," << t->phone << "," << t->carID << "," << t->date << endl;
     }
 }
 
@@ -261,8 +271,10 @@ Cust* loadCust() {
     ifstream f(getDataPath("db_customers.csv").c_str());
     string l; Cust* h = NULL;
     while (getline(f, l)) {
-        stringstream ss(l); string n, p, m;
-        if (getline(ss, n, ',') && getline(ss, p, ',') && getline(ss, m, ',')) { Cust* nc = new Cust(n, p, m); nc->next = h; h = nc; }
+        stringstream ss(l); string n, p, id, d;
+        if (getline(ss, n, ',') && getline(ss, p, ',') && getline(ss, id, ',') && getline(ss, d)) { 
+            Cust* nc = new Cust(n, p, id, d); nc->next = h; h = nc; 
+        }
     }
     return h;
 }
@@ -292,7 +304,7 @@ bool handleRental(Showroom& sr, Cust** h, HistoryStack& rs, double& rev, string 
     Cust* nc = new Cust(name, phone, id); nc->next = *h; *h = nc;
     rs.push("Rented " + c->makeModel + " to " + name);
     sr.saveToFile(); saveCust(*h, sr); updateRevenue(rev);
-    cout << GRN << "\n--- BOOKING CONFIRMED ---\nTotal: $" << c->rate * days << RST << endl;
+    cout << GRN << "\n--- BOOKING CONFIRMED ---\nTotal: $" << fixed << setprecision(2) << c->rate * days << RST << endl;
     return true;
 }
 
