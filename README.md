@@ -39,7 +39,7 @@ Ensure you have a C++ compiler installed (e.g., `g++`).
 
 1. **Compile the project:**
    ```bash
-   g++ -o paddock_club "src/AdamAnwar(243DC245L4).cpp"
+   g++ -o paddock_club src/AdamAnwar_243DC245L4.cpp
    ```
 
 2. **Run the application:**
