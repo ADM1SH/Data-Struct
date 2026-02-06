@@ -440,7 +440,7 @@ int main() {
         else if (c == 8) {
             cout << "Pass: "; cin >> pInput;
             if (pInput == pass) {
-                int a; cout << CYN << "\n--- ADMIN ---" << RST << "\n1.Add 2.Del 3.Cust 4.Stats 5.Pass: "; cin >> a;
+                int a; cout << CYN << "\n--- ADMIN ---" << RST << "\n1.Add 2.Del 3.Cust 4.Stats 5.Pass 6.Edit: "; cin >> a;
                 if (a == 1) {
                     string i, m, t; int y, h, ts, s; double r;
                     cout << "ID/Model/Y/HP/TS/Rate/Stock: "; cin >> i; cin.ignore(); getline(cin, m);
@@ -451,6 +451,15 @@ int main() {
                 if (a == 3) { for (Cust* tC = custHead; tC; tC = tC->next) cout << tC->name << " | " << tC->phone << " | " << tC->carID << endl; }
                 if (a == 4) sr.showAnalytics(sessionRev);
                 if (a == 5) { cin >> pass; ofstream f(getDataPath("admin_pass.txt").c_str()); f << pass; }
+                if (a == 6) {
+                    cout << "ID: "; cin >> id; Car* ec = sr.get(id);
+                    if (ec) {
+                        int ch; cout << "Edit: [1] Model [2] Rate: "; cin >> ch;
+                        if (ch == 1) { cout << "New Model: "; cin.ignore(); getline(cin, ec->makeModel); }
+                        else if (ch == 2) { cout << "New Rate: "; cin >> ec->rate; }
+                        sr.saveToFile(); cout << GRN << "Updated." << RST << endl;
+                    } else cout << RED << "Not Found!" << RST << endl;
+                }
             }
         }
         cout << "\n(Enter to continue...)"; cin.ignore(); cin.get();
