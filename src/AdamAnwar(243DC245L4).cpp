@@ -1,0 +1,338 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+
+using namespace std;
+
+// High-End UI Colors
+#define RED "\033[31m"
+#define GRN "\033[32m"
+#define YEL "\033[33m"
+#define CYN "\033[36m"
+#define RST "\033[0m"
+
+// Utility: Remove whitespace from strings
+string trim(string s) {
+    size_t f = s.find_first_not_of(" \t\r\n"), l = s.find_last_not_of(" \t\r\n");
+    return (f == string::npos) ? "" : s.substr(f, (l - f + 1));
+}
+
+// Convert string to lowercase for searching
+string toLower(string s) {
+    for (int i = 0; i < (int)s.length(); i++) {
+        if (s[i] >= 'A' && s[i] <= 'Z') s[i] += 32;
+    }
+    return s;
+}
+
+// Locate data files
+string getDataPath(string fileName) {
+    string paths[] = {"data/" + fileName, "../data/" + fileName};
+    for (int i = 0; i < 2; i++) {
+        ifstream f(paths[i].c_str());
+        if (f.is_open()) return paths[i];
+    }
+    return "data/" + fileName;
+}
+
+// Core Car Object
+struct Car {
+    string id, makeModel, trans, status;
+    int year, hp, ts, stock, maxStock, rentalCount;
+    double rate;
+    Car(string i, string m, int y, int h, int t, string tr, double r, int s, int rc = 0)
+        : id(i), makeModel(m), trans(tr), year(y), hp(h), ts(t), stock(s), maxStock(s), rentalCount(rc), rate(r) {
+        status = (stock > 0) ? "Available" : "No Stock";
+    }
+    void displayRow() const {
+        string stockTxt = (stock > 0) ? to_string(stock) : "OUT";
+        string color = (stock > 0) ? GRN : RED;
+
+        cout << "| " << left << setw(6) << id
+             << "| " << setw(35) << makeModel
+             << "| " << right << setw(4) << hp << " hp "
+             << "| " << left << setw(5) << trans
+             << "| " << right << "$" << setw(7) << fixed << setprecision(0) << rate
+             << " | " << setw(3) << stockTxt
+             << " | " << color << left << setw(12) << status << RST << " |" << endl;
+    }
+};
+
+struct Cust { string name, phone, carID; Cust* next; Cust(string n, string p, string c) : name(n), phone(p), carID(c), next(NULL) {} };
+struct Node { Car* data; Node* next; Node(Car* c) : data(c), next(NULL) {} };
+
+// Queue: Circular Array for Wash Bay
+class ServiceQueue {
+    Car* queue[10]; int front, rear, size;
+public:
+    ServiceQueue() : front(0), rear(-1), size(0) {}
+    bool isFull() { return size == 10; }
+    bool isEmpty() { return size == 0; }
+    void enqueue(Car* c) {
+        if (isFull()) { cout << RED << "Bay Full!" << RST << endl; return; }
+        rear = (rear + 1) % 10; queue[rear] = c; size++; c->status = "In-Service";
+    }
+    void dequeue() {
+        if (isEmpty()) return;
+        Car* c = queue[front]; front = (front + 1) % 10; size--;
+        if (c->stock < c->maxStock) c->stock++;
+        c->status = (c->stock > 0) ? "Available" : "No Stock";
+    }
+    void display() {
+        if (isEmpty()) { cout << YEL << "Wash Bay Empty" << endl << RST; return; }
+        cout << CYN << "\n--- WASH BAY QUEUE ---" << RST << endl;
+        for (int i = 0, j = front; i < size; i++, j = (j + 1) % 10)
+            cout << i + 1 << ". " << queue[j]->makeModel << " [" << queue[j]->id << "]" << endl;
+    }
+    bool isInService(string id) {
+        for (int i = 0, j = front; i < size; i++, j = (j + 1) % 10) if (queue[j]->id == id) return true;
+        return false;
+    }
+};
+
+// Stack for History
+struct LogNode { string log; LogNode* next; LogNode(string s) : log(s), next(NULL) {} };
+class HistoryStack {
+    LogNode* top;
+public:
+    HistoryStack() : top(NULL) {}
+    void push(string s) {
+        LogNode* n = new LogNode(s); n->next = top; top = n;
+        ofstream f(getDataPath("audit_log.txt").c_str(), ios::app);
+        if (f.is_open()) {
+            time_t now = time(0); string ts = ctime(&now);
+            if (!ts.empty()) ts.erase(ts.length()-1);
+            f << "[" << ts << "] " << s << endl;
+        }
+    }
+    void display(string title) {
+        cout << CYN << "\n--- " << title << " ---" << RST << endl;
+        if (!top) { cout << "Empty" << endl; return; }
+        for (LogNode* t = top; t; t = t->next) cout << ">> " << t->log << endl;
+    }
+};
+
+// Hash Table
+class HashTable {
+    Node* table[50];
+public:
+    HashTable() { for(int i=0; i<50; i++) table[i] = NULL; }
+    int hashFn(string id) {
+        int s = 0; for (int i = 0; i < (int)id.length(); i++) s += id[i];
+        return s % 50;
+    }
+    void insert(Car* c) { int idx = hashFn(c->id); Node* n = new Node(c); n->next = table[idx]; table[idx] = n; }
+    Car* search(string id) {
+        for (Node* t = table[hashFn(id)]; t; t = t->next) if (t->data->id == id) return t->data;
+        return NULL;
+    }
+    void remove(string id) {
+        int idx = hashFn(id); Node *t = table[idx], *p = NULL;
+        while (t && t->data->id != id) { p = t; t = t->next; }
+        if (!t) return;
+        if (!p) table[idx] = t->next; else p->next = t->next;
+        delete t;
+    }
+};
+
+// Showroom Management
+class Showroom {
+    Node* head; HashTable* ht;
+public:
+    Showroom(HashTable* h) : head(NULL), ht(h) {}
+    void add(Car* c) {
+        Node* n = new Node(c);
+        if (!head) head = n; else { Node* t = head; while (t->next) t = t->next; t->next = n; }
+        ht->insert(c);
+    }
+    void displayHeader() {
+        cout << CYN << "--------------------------------------------------------------------------------------------" << endl;
+        cout << "| ID    | Make & Model                       | Power   | TR   | Rate    | Qty | Status       |" << endl;
+        cout << "--------------------------------------------------------------------------------------------" << RST << endl;
+    }
+    void displayFooter() {
+        cout << CYN << "--------------------------------------------------------------------------------------------" << RST << endl;
+    }
+    void display() {
+        displayHeader();
+        for (Node* t = head; t; t = t->next) t->data->displayRow();
+        displayFooter();
+    }
+    void searchBrand(string k) {
+        bool f = false; string lk = toLower(k);
+        displayHeader();
+        for (Node* t = head; t; t = t->next)
+            if (toLower(t->data->makeModel).find(lk) != string::npos) { t->data->displayRow(); f = true; }
+        displayFooter();
+        if (!f) cout << RED << "No matches found." << RST << endl;
+    }
+    void sortByBrand() {
+        for (Node* i = head; i; i = i->next)
+            for (Node* j = i->next; j; j = j->next)
+                if (i->data->makeModel > j->data->makeModel) { Car* temp = i->data; i->data = j->data; j->data = temp; }
+    }
+    void sort(int mode) { // 1: Price, 2: HP
+        for (Node* i = head; i; i = i->next)
+            for (Node* j = i->next; j; j = j->next)
+                if ((mode == 1 && i->data->rate < j->data->rate) || (mode == 2 && i->data->hp < j->data->hp)) {
+                    Car* temp = i->data; i->data = j->data; j->data = temp;
+                }
+    }
+    void del(string id, ServiceQueue& sq) {
+        Car* c = ht->search(id);
+        if (!c || c->status == "In-Service" || sq.isInService(id) || c->stock < c->maxStock) {
+            cout << RED << "Error: Car is active or not found." << endl; return;
+        }
+        Node *t = head, *p = NULL;
+        while (t && t->data->id != id) { p = t; t = t->next; }
+        if (!p) head = t->next; else p->next = t->next;
+        ht->remove(id); delete t->data; delete t; cout << YEL << "Decommissioned." << RST << endl;
+    }
+    Car* get(string id) { return ht->search(id); }
+    void showAnalytics(double sessionRevenue) {
+        double val = 0; Car* pop = NULL;
+        for (Node* t = head; t; t = t->next) {
+            val += (t->data->rate * t->data->maxStock);
+            if (!pop || t->data->rentalCount > pop->rentalCount) pop = t->data;
+        }
+        cout << CYN << "\n--- THE PADDOCK ANALYTICS ---\n" << RST
+             << "Total Asset Value:    $" << fixed << setprecision(2) << val << endl;
+        cout << "Session Revenue:      $" << sessionRevenue << endl;
+        cout << "Most Popular Vehicle: " << (pop && pop->rentalCount > 0 ? pop->makeModel : "N/A") << endl;
+    }
+    void saveToFile() {
+        ofstream f(getDataPath("db_fleet.csv").c_str());
+        for (Node* t = head; t; t = t->next)
+            f << t->data->id << "," << t->data->makeModel << "," << t->data->year << "," << t->data->hp << "," << t->data->ts
+              << "," << t->data->trans << "," << t->data->rate << "," << t->data->stock << "," << t->data->maxStock << "," << t->data->rentalCount << endl;
+    }
+    void loadFromFile() {
+        string path = getDataPath("db_fleet.csv"); ifstream f(path.c_str());
+        if (!f.is_open()) return;
+        string line;
+        while (getline(f, line)) {
+            if (line.length() < 5) continue;
+            vector<string> col; string part; stringstream ss(line);
+            while (getline(ss, part, ',')) col.push_back(trim(part));
+            if (col.size() >= 7) {
+                try {
+                    Car* c = new Car(col[0], col[1], stoi(col[2]), stoi(col[3]), stoi(col[4]), col[5], stod(col[6]),
+                                     col.size() > 7 ? stoi(col[7]) : 1, col.size() > 9 ? stoi(col[9]) : 0);
+                    c->maxStock = col.size() > 8 ? stoi(col[8]) : c->stock;
+                    add(c);
+                } catch(...) {}
+            }
+        }
+        sortByBrand();
+    }
+};
+
+// Global Helpers
+void header() {
+    cout << CYN << "  _______ _    _  ______   _____             _____   _____    ____    _____  _  __\n"
+         << " |__   __| |  | | |  ____| |  __ \\    /\\    |  __ \\ |  __ \\  / __ \\  / ____|| |/ /\n"
+         << "    | |  | |__| | | |__    | |__) |  /  \\   | |  | || |  | || |  | || |     | ' / \n"
+         << "    | |  |  __  | |  __|   |  ___/  / /\\ \\  | |  | || |  | || |  | || |     |  <  \n"
+         << "    | |  | |  | | | |____  | |     / ____ \\ | |__| || |__| || |__| || |____ | . \\ \n"
+         << "    |_|  |_|  |_| |______| |_|    /_/    \\_\\|_____/ |_____/  \\____/  \\_____||_|\\_\\\n"
+         << "\n                       _____  _       _    _  ____  \n"
+         << "                      / ____|| |     | |  | ||  _ \\ \n"
+         << "                     | |     | |     | |  | || |_) |\n"
+         << "                     | |     | |     | |  | ||  _ < \n"
+         << "                     | |____ | |____ | |__| || |_) |\n"
+         << "                      \\_____||______| \\____/ |____/ \n" << RST
+         << "\n                      EXOTIC & PERFORMANCE CAR RENTALS\n==================================================================================\n" << endl;
+}
+
+void updateRevenue(double rev) {
+    ofstream f(getDataPath("Revenue_Report.txt").c_str());
+    if (f.is_open()) { time_t n = time(0); f << "PADDOCK CLUB FINANCIAL REPORT\nGenerated: " << ctime(&n) << "Total Revenue: $" << fixed << setprecision(2) << rev << endl; }
+}
+
+void saveCust(Cust* h, Showroom& sr) {
+    ofstream f(getDataPath("db_customers.csv").c_str());
+    for (Cust* t = h; t; t = t->next) {
+        Car* c = sr.get(t->carID);
+        f << t->name << "," << t->phone << "," << (c ? c->makeModel : "Unknown") << "," << (c ? c->rate : 0) << ",Fri Feb 6 12:15:10 2026" << endl;
+    }
+}
+
+Cust* loadCust() {
+    ifstream f(getDataPath("db_customers.csv").c_str());
+    string l; Cust* h = NULL;
+    while (getline(f, l)) {
+        stringstream ss(l); string n, p, m;
+        if (getline(ss, n, ',') && getline(ss, p, ',') && getline(ss, m, ',')) { Cust* nc = new Cust(n, p, m); nc->next = h; h = nc; }
+    }
+    return h;
+}
+
+double loadRevenue() {
+    ifstream f(getDataPath("Revenue_Report.txt").c_str());
+    string line; double rev = 0;
+    while(getline(f, line)){
+        if(line.find("Total Revenue: $") != string::npos){
+            try { rev = stod(line.substr(line.find("$") + 1)); } catch(...) { rev = 0; }
+        }
+    }
+    return rev;
+}
+
+void clear() { cin.clear(); cin.ignore(1000, '\n'); }
+
+bool handleRental(Showroom& sr, Cust** h, HistoryStack& rs, double& rev, string id) {
+    int age, days; Car* c = sr.get(id);
+    if (!c || c->stock <= 0) { cout << RED << "Unavailable!" << RST << endl; return false; }
+    cout << "Age: "; if (!(cin >> age) || age < 18) { cout << RED << "Denied: Underage!" << RST << endl; clear(); return false; }
+    if (c->hp > 500 && age < 25) { cout << RED << "Power Restricted (25+ required)!" << RST << endl; return false; }
+    string name, phone; cout << "Name: "; cin.ignore(); getline(cin, name);
+    cout << "Phone: "; cin >> phone; cout << "Days: "; if (!(cin >> days) || days <= 0) { cout << RED << "Invalid days!" << endl; clear(); return false; }
+    c->stock--; c->rentalCount++; rev += (c->rate * days);
+    if (c->stock == 0) c->status = "Rented (Out)";
+    Cust* nc = new Cust(name, phone, id); nc->next = *h; *h = nc;
+    rs.push("Rented " + c->makeModel + " to " + name);
+    sr.saveToFile(); saveCust(*h, sr); updateRevenue(rev);
+    cout << GRN << "\n--- BOOKING CONFIRMED ---\nTotal: $" << c->rate * days << RST << endl;
+    return true;
+}
+
+int main() {
+    HashTable ht; Showroom sr(&ht); ServiceQueue sq; HistoryStack rs, ss;
+    Cust* custHead = loadCust(); string pass = "paddock77", pInput, id;
+    double sessionRev = loadRevenue();
+    ifstream pf(getDataPath("admin_pass.txt").c_str()); if (pf.is_open()) { getline(pf, pass); pf.close(); }
+    sr.loadFromFile();
+    int c;
+    while (true) {
+        system("clear"); header();
+        cout << CYN << "[ MAIN NAVIGATION ]" << RST << endl;
+        cout << left << setw(25) << "1. View Showroom" << setw(25) << "2. Search Catalog" << endl;
+        cout << left << setw(25) << "3. Sort Catalog" << setw(25) << "4. Rent Vehicle" << endl;
+        cout << left << setw(25) << "5. Return Vehicle" << setw(25) << "6. Wash Bay Queue" << endl;
+        cout << left << setw(25) << "7. Activity Logs" << setw(25) << "8. Admin Console" << endl;
+        cout << left << setw(25) << "0. Exit System" << endl;
+        cout << CYN << "\nChoice: " << RST;
+        if (!(cin >> c)) { clear(); continue; }
+        if (c == 0) break;
+        if (c == 1) { sr.display(); char b; cout << "\nBook? (y/n): "; cin >> b; if (tolower(b) == 'y') { cout << "ID: "; cin >> id; handleRental(sr, &custHead, rs, sessionRev, id); } }
+        else if (c == 2) { string k; cout << "Keyword: "; cin >> k; ss.push("Searched: " + k); sr.searchBrand(k); }
+        else if (c == 3) { int s; cout << "[1] Price [2] Power [3] Brand: "; cin >> s; if (s == 3) sr.sortByBrand(); else sr.sort(s); sr.display(); }
+        else if (c == 4) { cout << "ID: "; cin >> id; handleRental(sr, &custHead, rs, sessionRev, id); }
+        else if (c == 5) { cout << "ID: "; cin >> id; Car* cr = sr.get(id); if (cr && cr->stock < cr->maxStock && cr->status != "In-Service") { sq.enqueue(cr); rs.push("Returned " + cr->makeModel); } else cout << RED << "Error!" << endl; }
+        else if (c == 6) { sq.display(); if (!sq.isEmpty()) { char y; cout << "Finish? (y/n): "; cin >> y; if (tolower(y) == 'y') sq.dequeue(); } }
+        else if (c == 7) { rs.display("RENTAL ACTIVITY LOGS"); ss.display("SEARCH HISTORY LOGS"); }
+        else if (c == 8) {
+            cout << "Pass: "; cin >> pInput;
+            if (pInput == pass) {
+                int a; cout << CYN << "\n--- ADMIN ---" << RST << "\n1.Add 2.Del 3.Cust 4.Stats 5.Pass: "; cin >> a;
+                if (a == 1) { string i, m, t; int y, h, ts, s; double r; cout << "ID/Model/Y/HP/TS/Rate/Stock: "; cin >> i; cin.ignore(); getline(cin, m); cin >> y >> h >> ts >> r >> s; cout << "TR: "; cin >> t; sr.add(new Car(i, m, y, h, ts, t, r, s)); sr.saveToFile(); }
+                if (a == 2) { cout << "ID: "; cin >> id; sr.del(id, sq); sr.saveToFile(); }
+                if (a == 3) { for (Cust* tC = custHead; tC; tC = tC->next) cout << tC->name << " | " << tC->phone << " | " << tC->carID << endl; }
+                if (a == 4) sr.showAnalytics(sessionRev);
+                if (a == 5) { cin >> pass; ofstream f(getDataPath("admin_pass.txt").c_str()); f << pass; }
+            }
+        }
+        cout << "\n(Enter to continue...)"; cin.ignore(); cin.get();
+    }
+    return 0;
+}
