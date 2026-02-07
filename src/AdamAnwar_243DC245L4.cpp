@@ -115,6 +115,7 @@ public:
         Car* c = queue[front]; front = (front + 1) % 10; size--;
         if (c->stock < c->maxStock) c->stock++;
         c->status = (c->stock > 0) ? "Available" : "No Stock";
+        cout << GRN << "Service Complete: " << c->makeModel << " is back in the showroom." << RST << endl;
     }
 
     // Displays all cars currently being serviced
@@ -517,11 +518,16 @@ int main() {
             if (id != "0") handleRental(sr, &custHead, rs, sessionRev, id);
         }
         else if (c == 5) {
-            cout << "ID: "; cin >> id;
+            cout << "Enter Vehicle ID to Return: "; cin >> id;
             Car* cr = sr.get(id);
             if (cr && cr->stock < cr->maxStock && cr->status != "In-Service") {
-                sq.enqueue(cr); rs.push("Returned " + cr->makeModel);
-            } else cout << RED << "Error!" << endl;
+                sq.enqueue(cr); 
+                rs.push("Returned " + cr->makeModel);
+                cout << GRN << "\n--- RETURN SUCCESSFUL ---" << endl;
+                cout << "Vehicle [" << id << "] has been sent to the WASH BAY." << RST << endl;
+            } else {
+                cout << RED << "Error: Vehicle ID not found or already in stock/service!" << RST << endl;
+            }
         }
         else if (c == 6) {
             sq.display();
