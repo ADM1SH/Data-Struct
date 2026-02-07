@@ -1,13 +1,18 @@
 /*
  * LIBRARIES USED:
- * - iostream: Standard input/output stream for console interaction (cin, cout).
- * - fstream: File stream for reading from and writing to external data files (persistence).
- * - sstream: String stream for parsing and splitting strings, especially for CSV data processing.
+ * - iostream: Standard input/output stream for console interaction.
+ * - fstream: File stream for reading from and writing to external data files.
+ * - sstream: String stream for parsing and splitting strings.
+ * - iomanip: Input/output manipulators for formatted table displays.
+ * - vector: Dynamic array container for temporary data processing.
+ * - ctime: System time for logging and date stamping.
  */
 #include <iostream>
 #include <fstream>
 #include <sstream>
-
+#include <iomanip>
+#include <vector>
+#include <ctime>
 using namespace std;
 
 // ANSI Escape Codes for High-End UI Colors in the terminal
@@ -217,6 +222,19 @@ public:
         displayFooter();
     }
 
+    // Displays only vehicles with stock available for rental
+    void displayAvailable() {
+        bool f = false;
+        displayHeader();
+        for (Node* t = head; t; t = t->next) {
+            if (t->data->stock > 0 && t->data->status != "In-Service") {
+                t->data->displayRow(); f = true;
+            }
+        }
+        displayFooter();
+        if (!f) cout << RED << "No vehicles currently available for rent." << RST << endl;
+    }
+
     // Linear Search for partial brand name matches
     void searchBrand(string k) {
         bool f = false; string lk = toLower(k);
@@ -241,6 +259,68 @@ public:
                 if ((mode == 1 && i->data->rate < j->data->rate) || (mode == 2 && i->data->hp < j->data->hp)) {
                     Car* temp = i->data; i->data = j->data; j->data = temp;
                 }
+    }
+
+    // Merge Sort Implementation for Linked List (O(n log n))
+    Node* sortedMerge(Node* a, Node* b, int mode) {
+        if (!a) return b; if (!b) return a;
+        Node* res = NULL;
+        bool cond = false;
+        if (mode == 1) cond = (a->data->rate >= b->data->rate); // Price DESC
+        else if (mode == 2) cond = (a->data->hp >= b->data->hp); // HP DESC
+        else if (mode == 4) cond = (a->data->year <= b->data->year); // Year ASC
+        else cond = (a->data->makeModel <= b->data->makeModel); // Name ASC
+
+        if (cond) { res = a; res->next = sortedMerge(a->next, b, mode); }
+        else { res = b; res->next = sortedMerge(a, b->next, mode); }
+        return res;
+    }
+
+    void split(Node* src, Node** f, Node** r) {
+        Node *fast, *slow; slow = src; fast = src->next;
+        while (fast) { fast = fast->next; if (fast) { slow = slow->next; fast = fast->next; } }
+        *f = src; *r = slow->next; slow->next = NULL;
+    }
+
+    void mergeSort(Node** headRef, int mode) {
+        Node* h = *headRef; if (!h || !h->next) return;
+        Node *a, *b; split(h, &a, &b);
+        mergeSort(&a, mode); mergeSort(&b, mode);
+        *headRef = sortedMerge(a, b, mode);
+    }
+
+    void performMergeSort(int mode) { mergeSort(&head, mode); }
+
+        // Binary Search Implementation: Search by Year
+        // Note: Requires the list to be sorted by year first.
+        void searchByYear(int targetYear) {
+            // Sort by year first for binary search to work using Merge Sort (O(n log n))
+            performMergeSort(4);
+
+            // Copy nodes to array for O(1) access
+            int count = 0; for (Node* t = head; t; t = t->next) count++;        if (count == 0) return;
+        Car** arr = new Car*[count];
+        Node* curr = head; for (int i = 0; i < count; i++) { arr[i] = curr->data; curr = curr->next; }
+
+        int l = 0, r = count - 1;
+        bool found = false;
+        displayHeader();
+        while (l <= r) {
+            int m = l + (r - l) / 2;
+            if (arr[m]->year == targetYear) {
+                // Found one, but there might be others with the same year
+                // Scan left and right to find all matches
+                int left = m; while (left >= 0 && arr[left]->year == targetYear) left--;
+                int right = m; while (right < count && arr[right]->year == targetYear) right++;
+                for (int i = left + 1; i < right; i++) arr[i]->displayRow();
+                found = true; break;
+            }
+            if (arr[m]->year < targetYear) l = m + 1;
+            else r = m - 1;
+        }
+        displayFooter();
+        if (!found) cout << RED << "No cars found from " << targetYear << RST << endl;
+        delete[] arr;
     }
 
     // Deletes a car from the fleet if it is not currently active or rented
@@ -334,11 +414,13 @@ void saveCust(Cust* h, Showroom& sr) {
 // Global Function: Loads customer data from CSV into a Linked List
 Cust* loadCust() {
     ifstream f(getDataPath("db_customers.csv").c_str());
-    string l; Cust* h = NULL;
+    string l; Cust *h = NULL, *tail = NULL;
     while (getline(f, l)) {
         stringstream ss(l); string n, p, id, d;
         if (getline(ss, n, ',') && getline(ss, p, ',') && getline(ss, id, ',') && getline(ss, d)) {
-            Cust* nc = new Cust(n, p, id, d); nc->next = h; h = nc; 
+            Cust* nc = new Cust(n, p, id, trim(d));
+            if (!h) { h = nc; tail = nc; }
+            else { tail->next = nc; tail = nc; }
         }
     }
     return h;
@@ -407,20 +489,32 @@ int main() {
         // Navigation Logic based on user input
         if (c == 1) {
             sr.display();
-            char b; cout << "\nBook? (y/n): "; cin >> b;
-            if (tolower(b) == 'y') { cout << "ID: "; cin >> id; handleRental(sr, &custHead, rs, sessionRev, id); }
+            char b; cout << "\nBook a car? (y/n): "; cin >> b;
+            if (tolower(b) == 'y') { 
+                cout << "Enter ID (or 0 to cancel): "; cin >> id; 
+                if (id != "0") handleRental(sr, &custHead, rs, sessionRev, id); 
+            }
         }
         else if (c == 2) {
-            string k; cout << "Keyword: "; cin >> k;
-            ss.push("Searched: " + k); sr.searchBrand(k);
+            int sc; cout << "[1] Search by Model (Linear) [2] Search by Year (Binary): "; cin >> sc;
+            if (sc == 1) {
+                string k; cout << "Keyword: "; cin >> k;
+                ss.push("Searched Brand: " + k); sr.searchBrand(k);
+            } else if (sc == 2) {
+                int y; cout << "Year: "; cin >> y;
+                ss.push("Searched Year: " + to_string(y)); sr.searchByYear(y);
+            }
         }
         else if (c == 3) {
-            int s; cout << "[1] Price [2] Power [3] Brand: "; cin >> s;
-            if (s == 3) sr.sortByBrand(); else sr.sort(s);
+            int s; cout << "[1] Price [2] Power [3] Brand [4] Year (All Merge Sort): "; cin >> s;
+            if (s >= 1 && s <= 4) { sr.performMergeSort(s); rs.push("Sorted Catalog (Mode " + to_string(s) + ")"); }
             sr.display();
         }
         else if (c == 4) {
-            cout << "ID: "; cin >> id; handleRental(sr, &custHead, rs, sessionRev, id);
+            cout << CYN << "\n--- AVAILABLE FOR RENTAL ---" << RST << endl;
+            sr.displayAvailable();
+            cout << "Enter ID to Rent (or 0 to cancel): "; cin >> id;
+            if (id != "0") handleRental(sr, &custHead, rs, sessionRev, id);
         }
         else if (c == 5) {
             cout << "ID: "; cin >> id;
@@ -448,17 +542,35 @@ int main() {
                     sr.add(new Car(i, m, y, h, ts, t, r, s)); sr.saveToFile();
                 }
                 if (a == 2) { cout << "ID: "; cin >> id; sr.del(id, sq); sr.saveToFile(); }
-                if (a == 3) { for (Cust* tC = custHead; tC; tC = tC->next) cout << tC->name << " | " << tC->phone << " | " << tC->carID << endl; }
+                if (a == 3) {
+                    cout << CYN << "\n--- CUSTOMER RECORDS ---\n" << RST;
+                    cout << left << setw(20) << "Name" << " | " << setw(15) << "Phone" << " | " << setw(10) << "Car ID" << " | " << "Date" << endl;
+                    cout << "----------------------------------------------------------------------" << endl;
+                    for (Cust* tC = custHead; tC; tC = tC->next) {
+                        cout << left << setw(20) << tC->name << " | " << setw(15) << tC->phone << " | " << setw(10) << tC->carID << " | " << tC->date << endl;
+                    }
+                }
                 if (a == 4) sr.showAnalytics(sessionRev);
-                if (a == 5) { cin >> pass; ofstream f(getDataPath("admin_pass.txt").c_str()); f << pass; }
+                if (a == 5) {
+                    cout << "New Password: "; cin >> pass;
+                    ofstream f(getDataPath("admin_pass.txt").c_str());
+                    if (f.is_open()) { f << pass; cout << GRN << "Password updated." << RST << endl; }
+                    else cout << RED << "Error saving password!" << RST << endl;
+                    clear();
+                }
                 if (a == 6) {
                     cout << "ID: "; cin >> id; Car* ec = sr.get(id);
                     if (ec) {
-                        int ch; cout << "Edit: [1] Model [2] Rate: "; cin >> ch;
+                        int ch; cout << "Edit: [1] Model [2] Rate [3] Year [4] HP [5] TS [6] Trans [7] Stock: "; cin >> ch;
                         if (ch == 1) { cout << "New Model: "; cin.ignore(); getline(cin, ec->makeModel); }
                         else if (ch == 2) { cout << "New Rate: "; cin >> ec->rate; }
-                        sr.saveToFile(); cout << GRN << "Updated." << RST << endl;
-                    } else cout << RED << "Not Found!" << RST << endl;
+                        else if (ch == 3) { cout << "New Year: "; cin >> ec->year; }
+                        else if (ch == 4) { cout << "New HP: "; cin >> ec->hp; }
+                        else if (ch == 5) { cout << "New Top Speed: "; cin >> ec->ts; }
+                        else if (ch == 6) { cout << "New Trans: "; cin >> ec->trans; }
+                        else if (ch == 7) { cout << "New Stock: "; cin >> ec->stock; ec->maxStock = ec->stock; }
+                        sr.saveToFile(); cout << GRN << "Vehicle updated successfully." << RST << endl;
+                    } else cout << RED << "Vehicle ID not found!" << RST << endl;
                 }
             }
         }
