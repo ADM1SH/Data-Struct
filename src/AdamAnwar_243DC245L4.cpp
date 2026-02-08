@@ -91,7 +91,7 @@ struct Cust {
     }
 };
 
-// Generic Node for Linked List of Cars
+//Node for Linked List of Cars
 struct Node { Car* data; Node* next; Node(Car* c) : data(c), next(NULL) {} };
 
 // QUEUE DATA STRUCTURE: Circular Array implementation for the Wash Bay
@@ -543,11 +543,26 @@ int main() {
                 int a; cout << CYN << "\n--- ADMIN ---" << RST << "\n1.Add 2.Del 3.Cust 4.Stats 5.Pass 6.Edit: "; cin >> a;
                 if (a == 1) {
                     string i, m, t; int y, h, ts, s; double r;
-                    cout << "ID/Model/Y/HP/TS/Rate/Stock: "; cin >> i; cin.ignore(); getline(cin, m);
-                    cin >> y >> h >> ts >> r >> s; cout << "TR: "; cin >> t;
-                    sr.add(new Car(i, m, y, h, ts, t, r, s)); sr.saveToFile();
+                    cout << CYN << "\n--- ADD NEW VEHICLE ---" << RST << endl;
+                    cout << "Enter Unique ID (e.g., ST01): "; cin >> i;
+                    cin.ignore(); // Clear buffer for getline
+                    cout << "Enter Make & Model (e.g., Proton Satria GTI): "; getline(cin, m);
+                    cout << "Enter Year (e.g., 2004): "; while(!(cin >> y)) { cout << "Invalid! Year: "; clear(); }
+                    cout << "Enter Horsepower (HP): "; while(!(cin >> h)) { cout << "Invalid! HP: "; clear(); }
+                    cout << "Enter Top Speed (KM/H): "; while(!(cin >> ts)) { cout << "Invalid! TS: "; clear(); }
+                    cout << "Enter Rental Rate ($/Day): "; while(!(cin >> r)) { cout << "Invalid! Rate: "; clear(); }
+                    cout << "Enter Initial Stock: "; while(!(cin >> s)) { cout << "Invalid! Stock: "; clear(); }
+                    cout << "Enter Transmission (Auto/Man): "; cin >> t;
+                    
+                    sr.add(new Car(i, m, y, h, ts, t, r, s)); 
+                    sr.saveToFile();
+                    cout << GRN << "\nSUCCESS: " << m << " added to fleet." << RST << endl;
                 }
-                if (a == 2) { cout << "ID: "; cin >> id; sr.del(id, sq); sr.saveToFile(); }
+                if (a == 2) { 
+                    cout << "Enter ID to Delete: "; cin >> id; 
+                    sr.del(id, sq); 
+                    sr.saveToFile(); 
+                }
                 if (a == 3) {
                     cout << CYN << "\n--- CUSTOMER RECORDS ---\n" << RST;
                     cout << left << setw(20) << "Name" << " | " << setw(15) << "Phone" << " | " << setw(10) << "Car ID" << " | " << "Date" << endl;
@@ -565,9 +580,10 @@ int main() {
                     clear();
                 }
                 if (a == 6) {
-                    cout << "ID: "; cin >> id; Car* ec = sr.get(id);
+                    cout << "Enter ID to Edit: "; cin >> id; Car* ec = sr.get(id);
                     if (ec) {
-                        int ch; cout << "Edit: [1] Model [2] Rate [3] Year [4] HP [5] TS [6] Trans [7] Stock: "; cin >> ch;
+                        cout << CYN << "\nEditing: " << ec->makeModel << RST << endl;
+                        int ch; cout << "[1] Model [2] Rate [3] Year [4] HP [5] TS [6] Trans [7] Stock [0] Cancel: "; cin >> ch;
                         if (ch == 1) { cout << "New Model: "; cin.ignore(); getline(cin, ec->makeModel); }
                         else if (ch == 2) { cout << "New Rate: "; cin >> ec->rate; }
                         else if (ch == 3) { cout << "New Year: "; cin >> ec->year; }
@@ -575,7 +591,11 @@ int main() {
                         else if (ch == 5) { cout << "New Top Speed: "; cin >> ec->ts; }
                         else if (ch == 6) { cout << "New Trans: "; cin >> ec->trans; }
                         else if (ch == 7) { cout << "New Stock: "; cin >> ec->stock; ec->maxStock = ec->stock; }
-                        sr.saveToFile(); cout << GRN << "Vehicle updated successfully." << RST << endl;
+                        
+                        if (ch != 0) {
+                            sr.saveToFile(); 
+                            cout << GRN << "Vehicle updated successfully." << RST << endl;
+                        }
                     } else cout << RED << "Vehicle ID not found!" << RST << endl;
                 }
             }
