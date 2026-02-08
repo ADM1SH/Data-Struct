@@ -21,7 +21,8 @@ This project implements a comprehensive set of data structures to manage the bus
 2. **Queue - Circular Array (Wash Bay):** A FIFO system to handle returned cars that require servicing before becoming available again.
 3. **Stack - Linked Implementation (Activity Logs):** A LIFO system tracking rental history and search logs.
 4. **Hash Table (Quick Lookup):** Provides $O(1)$ fast-lookup capabilities using car IDs to verify inventory instantly.
-5. **Enhanced Sorting:** Allows users to sort the catalog alphabetically by **Brand**, or by performance metrics like **Daily Rate** and **Horsepower**.
+5. **Merge Sort (O(n log n)):** Advanced sorting algorithm used for sorting the fleet by **Price**, **Horsepower**, **Brand**, and **Year**.
+6. **Binary Search (O(log n)):** Efficient search algorithm used for locating cars by **Year**, leveraging the sorted fleet.
 
 ---
 
